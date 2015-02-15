@@ -1,0 +1,51 @@
+{
+	"ImportPath": "github.com/kieranbroadfoot/horae",
+	"GoVersion": "go1.4",
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/snappy-go/snappy",
+			"Comment": "null-15",
+			"Rev": "12e4b4183793ac4b061921e7980845e750679fd0"
+		},
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.6.2-15-gd2f9ffa",
+			"Rev": "d2f9ffa1d9cf25b25191b221229effac1b6de526"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/negroni",
+			"Comment": "v0.1-55-g1dd3ab0",
+			"Rev": "1dd3ab0ff59e13f5b73dcbf70703710aebe50d2f"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-etcd/etcd",
+			"Comment": "v0.2.0-rc1-130-g6aa2da5",
+			"Rev": "6aa2da5a7a905609c93036b9307185a04a5a84a5"
+		},
+		{
+			"ImportPath": "github.com/gocql/gocql",
+			"Comment": "go1.1-290-gf9e6755",
+			"Rev": "f9e67558e6bbca570b476d2d37489df7b98e0162"
+		},
+		{
+			"ImportPath": "github.com/golang/groupcache/lru",
+			"Rev": "86ced4a88341076f89d57b6937a5c91ec1762ee3"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
+		},
+		{
+			"ImportPath": "github.com/relops/cqlr",
+			"Rev": "0ac35893ea3f1e4ee717ba838972b70a0943f7d7"
+		},
+		{
+			"ImportPath": "speter.net/go/exp/math/dec/inf",
+			"Rev": "42ca6cd68aa922bc3f32f1e056e61b65945d9ad7"
+		}
+	]
+}

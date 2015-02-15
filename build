@@ -9,24 +9,25 @@ rm -f $GOPATH/src/${REPO_PATH}
 mkdir -p $GOPATH/src/${ORG_PATH}
 ln -s ${PWD} $GOPATH/src/${REPO_PATH}
 
+export GOPATH=${PWD}/gopath:`godep path`
+
 eval $(go env)
 
 echo -e "\nGenerating swagger documentation\n"
-# find at https://github.com/yvasiyarov/swagger
-/usr/local/bin/swagger -apiPackage=github.com/kieranbroadfoot/horae/eirene -format=swagger -basePath="http://horae.kieranbroadfoot.com" -output="../swagger"
+# find and build from https://github.com/yvasiyarov/swagger
+/usr/local/bin/swagger -apiPackage=github.com/kieranbroadfoot/horae/eirene -format=swagger -basePath="http://horae.kieranbroadfoot.com" -output="apidocs"
 
-echo -e "\nGenerating statically compiled binaries\n"
+echo -e "\nGenerating statically compiled binary"
 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags '-s' -o bin/horae ${REPO_PATH}
-echo $GOPATH
-rm -rf $GOPATH
+rm -rf ${PWD}/gopath
 
-#echo "\nGenerating docker container\n"
+echo -e "\nGenerating docker container\n"
 # find at https://github.com/CenturyLinkLabs/golang-builder
 
 if [ -e "/usr/local/bin/boot2docker" ];
 then
 	boot2docker start > /dev/null 2>&1
-	$(boot2docker shellinit) > /dev/null 2>&1
+	$(boot2docker shellinit 2>/dev/null)
 fi 
 docker run --rm -v $(pwd):/src -v /var/run/docker.sock:/var/run/docker.sock centurylink/golang-builder kieranbroadfoot/horae
 # clean up resulting linux binary

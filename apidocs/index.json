@@ -1,0 +1,22 @@
+{
+    "apiVersion": "1.0",
+    "swaggerVersion": "1.2",
+    "apis": [
+        {
+            "path": "/queues",
+            "description": "Queues"
+        },
+        {
+            "path": "/tasks",
+            "description": "Tasks"
+        }
+    ],
+    "info": {
+        "title": "Horae API",
+        "description": "Horae is a thought experiment in datacenter scheduling for micro-services. Managing datacenters at scale requires complex scheduling incorporating numerous windows of operation on discrete systems/platforms.  Incorporating scheduling into each and every service which may need to interact with these systems and platforms can lead to increased complexity and fails to provide a singular pane of glass through which to view the activities which are scheduled for operation.  Horae attempts to tackle this challenge by providing a simple API into which tasks may be deposited into queues for action at a later time.  It does not attempt to off-load the task activity itself but rather simply initiates a callback a service at execution time.  This ensures simplicity of the scheduler but ensures business logic is not unevenly distributed across many components of the architecture.  Simple workflows *could* be expressed where each node of the workflow is only aware of its downstream partner.  Horae also has support for backpressure management of queues by providing a mechanism for a service to monitor the behaviour of the queue itself.",
+        "contact": "horae@kieranbroadfoot.com",
+        "termsOfServiceUrl": "http://horae.kieranbroadfoot.com",
+        "license": "Licensed as Apache 2.0",
+        "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0"
+    }
+}
