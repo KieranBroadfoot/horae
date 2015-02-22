@@ -57,6 +57,10 @@ create table paths (
     primary key (queue_uuid, path)
 );
 
+// Root Queue
+insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain) values (11111111-1111-1111-1111-111111111111, 'root', 'async', '', false);
+
+// Test Data
 insert into actions (action_uuid, operation, uri, payload) values (575d6070-a3f0-11e4-89d3-123b93f75cba, 'GET', 'http://www.test1.com', '');
 insert into actions (action_uuid, operation, uri, payload) values (28941e26-a479-11e4-89d3-123b93f75cba, 'GET', 'http://www.l1fe.co.uk', '');
 insert into actions (action_uuid, operation, uri, payload) values (28942088-a479-11e4-89d3-123b93f75cba, 'GET', 'http://www.verdacc.io', '');

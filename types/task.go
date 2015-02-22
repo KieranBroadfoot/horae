@@ -106,7 +106,6 @@ func bindActionsToTask(query *gocql.Query) (Task, error) {
 }
 
 func (task *Task) CreateOrUpdate() error {
-	// TODO - if Queue is null, set to root queue and check when is set
 	if task.UUID.String() == "00000000-0000-0000-0000-000000000000" {
 		// task was generated from json with an unknown UUID.  Fix up
 		task.UUID = gocql.TimeUUID()
@@ -116,8 +115,9 @@ func (task *Task) CreateOrUpdate() error {
 		return errors.New("Unspecified execution action")
 	}
 	if task.Queue == nil || task.Queue.String() == "00000000-0000-0000-0000-000000000000" {
-		// Unspecified queue.  Find "root" queue and assign
-		return errors.New("Must specify queue. Perhaps root?")
+		// Unspecified queue.  Assign to the "root" queue which is defined in schema.cql
+		uuid, _ := gocql.ParseUUID("11111111-1111-1111-1111-111111111111")
+		task.Queue = &uuid
 	}
 	task.CreateOrUpdateTags()
 	bind := cqlr.Bind(`insert into tasks (queue_uuid, task_uuid, execution_action, name, priority, promise_action, status, when) values (?, ?, ?, ?, ?, ?, ?, ?)`, task)

@@ -7,7 +7,6 @@ import (
 )
 
 func GenerateUUID() gocql.UUID {
-	// TODO - move to gocql TimeUUID()
 	return gocql.TimeUUID()
 }
 

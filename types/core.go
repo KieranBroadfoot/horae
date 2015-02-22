@@ -15,10 +15,9 @@ type Node struct {
 	Port    string
 }
 
-func InitDAO(clusterName string) {
+func InitDAO(cassandraAddress string, clusterName string) {
 	log.WithFields(log.Fields{"cluster": clusterName}).Info("Initializing DB Connection")
-	// TODO - need config to define where to find cassandra instance
-	cluster := gocql.NewCluster("127.0.0.1")
+	cluster := gocql.NewCluster(cassandraAddress)
 	cluster.Keyspace = "horae_" + clusterName
 	sess, err := cluster.CreateSession()
 	if err != nil {

@@ -10,67 +10,21 @@ import (
 	"os"
 )
 
-func StartServer(clusterName string) {
+var (
+	clusterName      string
+	cassandraAddress string
+	etcdAddress      string
+)
+
+func StartServer() {
+	InitConfig()
 	log.WithFields(log.Fields{"cluster": clusterName}).Info("Starting horae server")
 
-	// Create core core node type
+	// Create core node type
 	node := types.Node{common.GenerateUUID(), clusterName, "", ""}
 
-	types.InitDAO(clusterName)
-
-	/*	uuid_for_queue := gocql.TimeUUID().String()
-
-		queue := types.Queue{
-			UUID:              uuid_for_queue,
-			Name:              "my_test_queue",
-			QueueType:         "async",
-			WindowOfOperation: "",
-			ShouldDrain:       false}
-
-		log.Print("initial create")
-		types.CreateOrUpdateQueue(queue)
-
-		types.SetTagsForQueue(queue, []string{"tag_fuck", "tag_you"})
-		types.SetPathsForQueue(queue, []string{"/foo/bar", "/hello/world"})
-
-		for _, tag := range types.GetTagsForQueue(queue) {
-			log.Print(tag)
-		}
-		for _, path := range types.GetPathsForQueue(queue) {
-			log.Print(path)
-		}
-
-		log.Print("check object")
-		thing := types.GetQueue(uuid_for_queue)
-		log.Print(thing)
-
-		log.Print("update object")
-		queue.QueueType = "sync"
-		types.CreateOrUpdateQueue(queue)
-
-		log.Print("check again")
-		thing = types.GetQueue(uuid_for_queue)
-		log.Print(thing)
-
-		types.DeleteQueue(queue)
-
-		log.Print("check again (third)")
-		thing = types.GetQueue(uuid_for_queue)
-		log.Print(thing)
-
-		things := types.GetQueues()
-		log.Print(things)
-
-		things = types.GetQueuesByTag("tag1")
-		log.Print(things)
-
-		thing1, _ := types.GetQueueByPath("/datacenter/dc2/west/rack1")
-		log.Print(thing1)
-
-		thing2, _ := types.GetQueueByPath("/fuck/you")
-		log.Print(thing2)
-
-		log.Fatal("Exit")*/
+	eunomia.InitETCD(etcdAddress)
+	types.InitDAO(cassandraAddress, clusterName)
 
 	// Signal failure to core core
 	coreFailureCh := make(chan bool)

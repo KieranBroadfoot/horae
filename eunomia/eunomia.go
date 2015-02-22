@@ -10,6 +10,8 @@ const (
 	rootPath = "/horae/clusters/"
 )
 
+var etcdAddress string
+
 /*
 
 Structure of keys in etcd for core
@@ -26,9 +28,12 @@ quickly captured and updated
 
 */
 
+func InitETCD(address string) {
+	etcdAddress = address
+}
+
 func getEtcdClient() *etcd.Client {
-	// TODO - should be a config definition
-	return etcd.NewClient([]string{"http://127.0.0.1:4001"})
+	return etcd.NewClient([]string{"http://" + etcdAddress})
 }
 
 func setupEtcd(node types.Node) {
