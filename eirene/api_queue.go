@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/kieranbroadfoot/horae/types"
-	"io"
 	"net/http"
 )
 
@@ -13,16 +12,21 @@ import (
 // @Accept  json
 // @Param   uuid     path    string     false        "UUID of the requested queue"
 // @Success 200 {object} types.Queue
-// @Failure 400 {object} types.Error
+// @Failure 404 {object} types.Error "Queue not found"
 // @Resource /queues
 // @Router /queue/{uuid} [get]
 func getQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
 	// TODO - consider how best to marshall tags and paths into resulting object
 	vars := mux.Vars(r)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(types.GetQueue(vars["uuid"])); err != nil {
-		panic(err)
+	queue, qerr := types.GetQueue(vars["uuid"])
+	if qerr != nil {
+		returnError(w, 404, "Queue not found")
+	} else {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(queue); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -30,14 +34,35 @@ func getQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eunom
 // @Description This endpoint enables the creation of a new queue.  All queues must be defined with a unique name and window of operation and type.  Optionally you may also define a series of tags to help searching for a particular queue or queues.  The queue type is either "sync" or "async".  If defined as "async" then any tasks available in the queue will be executed in the next availability window.  However, sync queues will execute tasks in a FIFO manner during the availability window.  To enable this, tasks associated to the queue must execute a task completion call when finished to ensure Horae can continue execution.  Optionally sync queues may also define a backpressure URI, operation, payload AND definition.  If Horae starts to see the queue meet the backpressure definition the callback will be executed.
 // @Accept  json
 // @Param   queue     query    types.Queue     true        "A queue object"
-// @Success 200 {object} types.Success
+// @Success 200 {object} types.Queue
 // @Failure 400 {object} types.Error
 // @Resource /queues
 // @Router /queue [put]
 func createQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
 	// TODO - consider how best to marshall tags and paths into resulting object
-	io.WriteString(w, "Hello world!")
-	//toEunomia <- "FOO"
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	queue := new(types.Queue)
+	err := json.NewDecoder(r.Body).Decode(queue)
+	if err != nil {
+		returnError(w, 400, "Badly formed request")
+	} else {
+		// TODO - update docs to show that uuid should not be passed on creation
+		if queue.UUID.String() != "00000000-0000-0000-0000-000000000000" {
+			// marshalling json will create a dummy UUID if one was not specified.
+			returnError(w, 400, "Queue not saved: cannot specify UUID on create")
+		} else {
+			qerr := queue.CreateOrUpdate()
+			if qerr != nil {
+				returnError(w, 400, "Queue not saved: "+qerr.Error())
+			} else {
+				w.WriteHeader(http.StatusOK)
+				if err := json.NewEncoder(w).Encode(queue); err != nil {
+					panic(err)
+				}
+				//toEunomia <- "FOO"
+			}
+		}
+	}
 }
 
 // @Title updatequeue
@@ -51,8 +76,20 @@ func createQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 // @Router /queue/{uuid} [put]
 func updateQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
 	// TODO - consider how best to marshall tags and paths into resulting object
-	io.WriteString(w, "Hello world!")
-	//toEunomia <- "FOO"
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	queue := new(types.Queue)
+	err := json.NewDecoder(r.Body).Decode(queue)
+	if err != nil {
+		returnError(w, 400, "Badly formed request")
+	} else {
+		qerr := queue.CreateOrUpdate()
+		if qerr != nil {
+			returnError(w, 400, "Queue not updated: "+qerr.Error())
+		} else {
+			returnSuccess(w, "Queue updated")
+			//toEunomia <- "FOO"
+		}
+	}
 }
 
 // @Title deletequeue
@@ -65,7 +102,19 @@ func updateQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 // @Resource /queues
 // @Router /queue/{uuid} [delete]
 func deleteQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
-	io.WriteString(w, "Hello world!")
+	// TODO - handle shouldDrain case
+	vars := mux.Vars(r)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	queue, qerr := types.GetQueue(vars["uuid"])
+	if qerr != nil {
+		returnError(w, 404, "Queue not found")
+	} else {
+		qerr := queue.Delete()
+		if qerr != nil {
+			returnError(w, 400, "Queue not deleted: "+qerr.Error())
+		} else {
+			returnSuccess(w, "Queue deleted")
+		}
+	}
 	//toEunomia <- "FOO"
 }

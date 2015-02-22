@@ -16,12 +16,6 @@ import (
 // @Resource /queues
 // @Router /queues [get]
 func getQueues(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
-
-	// this gets us the variables out of the route from gorilla
-	//vars := mux.Vars(r)
-	//fmt.Println(vars["tag"])
-
 	// gets any query parameters from the URL itself
 	u, _ := url.Parse(r.URL.String())
 	queryParams := u.Query()

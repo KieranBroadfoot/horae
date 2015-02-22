@@ -11,6 +11,7 @@
 package eirene
 
 import (
+	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/negroni"
@@ -25,17 +26,17 @@ func startAPIInterface(toCore chan bool, toEunomia chan types.EunomiaRequest, li
 	log.Print("Starting API Interface")
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) { getTasks(w, r, toEunomia) }).Methods("GET")
-	router.HandleFunc("/task/{uuid}", func(w http.ResponseWriter, r *http.Request) { getTask(w, r, toEunomia) }).Methods("GET")
-	router.HandleFunc("/task", func(w http.ResponseWriter, r *http.Request) { createTask(w, r, toEunomia) }).Methods("PUT")
-	router.HandleFunc("/task/{uuid}", func(w http.ResponseWriter, r *http.Request) { updateTask(w, r, toEunomia) }).Methods("PUT")
-	router.HandleFunc("/task/{uuid}", func(w http.ResponseWriter, r *http.Request) { deleteTask(w, r, toEunomia) }).Methods("DELETE")
-	router.HandleFunc("/task/{uuid}/complete", func(w http.ResponseWriter, r *http.Request) { completeTask(w, r, toEunomia) }).Methods("GET")
-	router.HandleFunc("/queues", func(w http.ResponseWriter, r *http.Request) { getQueues(w, r, toEunomia) }).Methods("GET")
-	router.HandleFunc("/queue/{uuid}", func(w http.ResponseWriter, r *http.Request) { getQueue(w, r, toEunomia) }).Methods("GET")
-	router.HandleFunc("/queue", func(w http.ResponseWriter, r *http.Request) { createQueue(w, r, toEunomia) }).Methods("PUT")
-	router.HandleFunc("/queue/{uuid}", func(w http.ResponseWriter, r *http.Request) { updateQueue(w, r, toEunomia) }).Methods("PUT")
-	router.HandleFunc("/queue/{uuid}", func(w http.ResponseWriter, r *http.Request) { deleteQueue(w, r, toEunomia) }).Methods("DELETE")
+	router.HandleFunc("/v1/tasks", func(w http.ResponseWriter, r *http.Request) { getTasks(w, r, toEunomia) }).Methods("GET")
+	router.HandleFunc("/v1/task/{uuid}", func(w http.ResponseWriter, r *http.Request) { getTask(w, r, toEunomia) }).Methods("GET")
+	router.HandleFunc("/v1/task", func(w http.ResponseWriter, r *http.Request) { createTask(w, r, toEunomia) }).Methods("PUT")
+	router.HandleFunc("/v1/task/{uuid}", func(w http.ResponseWriter, r *http.Request) { updateTask(w, r, toEunomia) }).Methods("PUT")
+	router.HandleFunc("/v1/task/{uuid}", func(w http.ResponseWriter, r *http.Request) { deleteTask(w, r, toEunomia) }).Methods("DELETE")
+	router.HandleFunc("/v1/task/{uuid}/complete", func(w http.ResponseWriter, r *http.Request) { completeTask(w, r, toEunomia) }).Methods("GET")
+	router.HandleFunc("/v1/queues", func(w http.ResponseWriter, r *http.Request) { getQueues(w, r, toEunomia) }).Methods("GET")
+	router.HandleFunc("/v1/queue/{uuid}", func(w http.ResponseWriter, r *http.Request) { getQueue(w, r, toEunomia) }).Methods("GET")
+	router.HandleFunc("/v1/queue", func(w http.ResponseWriter, r *http.Request) { createQueue(w, r, toEunomia) }).Methods("PUT")
+	router.HandleFunc("/v1/queue/{uuid}", func(w http.ResponseWriter, r *http.Request) { updateQueue(w, r, toEunomia) }).Methods("PUT")
+	router.HandleFunc("/v1/queue/{uuid}", func(w http.ResponseWriter, r *http.Request) { deleteQueue(w, r, toEunomia) }).Methods("DELETE")
 	negroni := negroni.New(NewEireneLogger())
 	negroni.Use(mw)
 	negroni.UseHandler(router)
@@ -94,5 +95,19 @@ func StartEirene(node types.Node, signalToCore chan types.Node, failureToCore ch
 				}
 			}
 		}
+	}
+}
+
+func returnSuccess(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(types.Success{Message: message}); err != nil {
+		panic(err)
+	}
+}
+
+func returnError(w http.ResponseWriter, code uint32, message string) {
+	w.WriteHeader(http.StatusBadRequest)
+	if err := json.NewEncoder(w).Encode(types.Error{Code: code, Message: message}); err != nil {
+		panic(err)
 	}
 }

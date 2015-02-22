@@ -13,22 +13,27 @@ const (
 )
 
 type Queue struct {
-	UUID                   gocql.UUID `cql:"queue_uuid" json:"uuid,required" description:"The unique identifier of the queue"`
-	Name                   string     `cql:"name" json:"name,omitempty" description:"The unique name of the queue"`
-	QueueType              string     `cql:"queue_type" json:"queueType,omitempty" description:"The type of queue: sync or async"`
-	WindowOfOperation      string     `cql:"window_of_operation" json:"windowOfOperation,omitempty" description:"The window of operation for the queue if defined as sync"`
-	ShouldDrain            bool       `cql:"should_drain" json:"shouldDrain,omitempty" description:"The expected behaviour of the queue when it is deleted. If true the queue will drain (and no longer accept new requests) before it is deleted.  Defaults to true"`
-	BackPressureAction     string     `cql:"backpressure_action" json:"backpressureAction,omitempty" description:"The unique identifier of an action to be called in the event that the backpressure definition is breached"`
-	BackpressureDefinition string     `cql:"backpressure_definition" json:"backpressureDefinition,omitempty" description:"For synchronous queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called."`
-	Tasks                  []Task     `json:"-"`
+	UUID                   gocql.UUID  `cql:"queue_uuid" json:"uuid,required" description:"The unique identifier of the queue"`
+	Name                   string      `cql:"name" json:"name,omitempty" description:"The unique name of the queue"`
+	QueueType              string      `cql:"queue_type" json:"queueType,omitempty" description:"The type of queue: sync or async"`
+	WindowOfOperation      string      `cql:"window_of_operation" json:"windowOfOperation,omitempty" description:"The window of operation for the queue if defined as sync"`
+	ShouldDrain            bool        `cql:"should_drain" json:"shouldDrain,omitempty" description:"The expected behaviour of the queue when it is deleted. If true the queue will drain (and no longer accept new requests) before it is deleted.  Defaults to true"`
+	BackPressureAction     *gocql.UUID `cql:"backpressure_action" json:"backpressureAction,omitempty" description:"The unique identifier of an action to be called in the event that the backpressure definition is breached"`
+	BackpressureDefinition string      `cql:"backpressure_definition" json:"backpressureDefinition,omitempty" description:"For synchronous queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called."`
+	OurTags                []string    `json:"tags,omitempty" description:"Tags assigned to the queue."`
+	OurPaths               []string    `json:"paths,omitempty" description:"Paths assigned to the queue."`
+	Tasks                  []Task      `json:"-"`
 }
 
+// Query
 func GetQueues() []Queue {
 	query := session.Query("select * from queues")
 	bind := cqlr.BindQuery(query)
 	var queue Queue
 	queues := []Queue{}
 	for bind.Scan(&queue) {
+		queue.LoadTags()
+		queue.LoadPaths()
 		queues = append(queues, queue)
 	}
 	return queues
@@ -43,19 +48,23 @@ func GetQueuesByTag(tag string) []Queue {
 		q := session.Query("select * from queues where queue_uuid = ?", id)
 		b := cqlr.BindQuery(q)
 		b.Scan(&queue)
+		queue.LoadTags()
+		queue.LoadPaths()
 		queues = append(queues, queue)
 	}
 	return queues
 }
 
-func GetQueue(queueUUID string) Queue {
+func GetQueue(queueUUID string) (Queue, error) {
 	query := session.Query("select * from queues where queue_uuid = ?", queueUUID)
 	bind := cqlr.BindQuery(query)
 	var queue Queue
 	if !bind.Scan(&queue) {
-		log.Println("didnt match anything....")
+		return Queue{}, errors.New("Unknown queue")
 	}
-	return queue
+	queue.LoadTags()
+	queue.LoadPaths()
+	return queue, nil
 }
 
 func GetQueueByPath(path string) (Queue, error) {
@@ -67,12 +76,24 @@ func GetQueueByPath(path string) (Queue, error) {
 	bind := cqlr.BindQuery(query)
 	var queue Queue
 	bind.Scan(&queue)
+	queue.LoadTags()
+	queue.LoadPaths()
 	return queue, nil
 }
 
-func (queue Queue) CreateOrUpdate() error {
+// CRUD
+func (queue *Queue) CreateOrUpdate() error {
 	// ensure paths are unique for object
-	bind := cqlr.Bind(`insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain) values (?, ?, ?, ?, ?)`, queue)
+	if queue.UUID.String() == "00000000-0000-0000-0000-000000000000" {
+		// queue was generated from json with an unknown UUID.  Fix up
+		queue.UUID = gocql.TimeUUID()
+	}
+	if queue.QueueType != "sync" && queue.QueueType != "async" {
+		return errors.New("Invalid queue type")
+	}
+	queue.CreateOrUpdateTags()
+	queue.CreateOrUpdatePaths()
+	bind := cqlr.Bind(`insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition) values (?, ?, ?, ?, ?, ?, ?)`, queue)
 	if err := bind.Exec(session); err != nil {
 		return err
 	} else {
@@ -80,53 +101,66 @@ func (queue Queue) CreateOrUpdate() error {
 	}
 }
 
-func (queue Queue) DeleteQueue() error {
+func (queue Queue) Delete() error {
+	queue.DeletePaths()
+	queue.DeleteTags()
 	bind := cqlr.Bind(`delete from queues where queue_uuid = ?`, queue)
 	if err := bind.Exec(session); err != nil {
-		log.Print("received error from delete")
 		return err
 	} else {
 		return nil
 	}
 }
 
-func (q Queue) Tags() []string {
-	return GetTagsForObject(q.UUID)
+func (q *Queue) LoadTags() {
+	q.OurTags = GetTagsForObject(q.UUID)
 }
 
-func (q Queue) SetTags(tags []string) {
-	SetTagsForObject(q.UUID, tags, "queue")
+func (q Queue) CreateOrUpdateTags() {
+	SetTagsForObject(q.UUID, q.OurTags, "queue")
 }
 
-func (q Queue) Paths() []string {
+func (q Queue) DeleteTags() {
+	DeleteTagsForObject(q.UUID)
+}
+
+func (q *Queue) LoadPaths() {
 	// find and return paths for queue
-	return GetPathsForQueue(q)
+	q.OurPaths = LoadPathsFromDB(q.UUID)
 }
 
-func (q Queue) SetPaths(paths []string) {
-	// set paths on queue
-	SetPathsForQueue(q, paths)
-}
-
-func GetPathsForQueue(queue Queue) []string {
+func LoadPathsFromDB(uuid gocql.UUID) []string {
+	// find and return paths for queue
 	paths := []string{}
 	path := ""
-	iteration := session.Query("select path from paths where queue_uuid = ?", queue.UUID).Iter()
+	iteration := session.Query("select path from paths where queue_uuid = ?", uuid).Iter()
 	for iteration.Scan(&path) {
 		paths = append(paths, path)
 	}
 	return paths
 }
 
-func SetPathsForQueue(queue Queue, paths []string) error {
-	for _, path := range paths {
-		if err := session.Query(`insert into paths (queue_uuid, path) VALUES (?, ?)`, queue.UUID, path).Exec(); err != nil {
-			return err
+func (q Queue) CreateOrUpdatePaths() {
+	// set paths on queue
+	pathsFromDB := LoadPathsFromDB(q.UUID)
+	for _, path := range q.OurPaths {
+		if isStringInSlice(path, pathsFromDB) {
+			pathsFromDB = findAndRemoveInSlice(path, pathsFromDB)
+		} else {
+			session.Query(`insert into paths (queue_uuid, path) VALUES (?, ?)`, q.UUID, path).Exec()
 		}
 	}
-	return nil
+	for _, pathToDelete := range pathsFromDB {
+		session.Query(`delete from paths where queue_uuid = ? and path = ?`, q.UUID, pathToDelete).Exec()
+	}
 }
 
+func (q Queue) DeletePaths() {
+	// delete paths on queue
+	session.Query(`delete from paths where queue_uuid = ?`, q.UUID).Exec()
+}
+
+// Queue Execution
 func (q *Queue) LoadTasks() {
 	log.WithFields(log.Fields{"name": q.Name}).Info("Loading tasks on Queue")
 	// TODO - should order tasks by execution time and priority
