@@ -1,9 +1,10 @@
 package eirene
 
 import (
+	"encoding/json"
 	"github.com/kieranbroadfoot/horae/types"
-	"io"
 	"net/http"
+	"net/url"
 )
 
 // @Title tasks
@@ -16,6 +17,17 @@ import (
 // @Resource /tasks
 // @Router /tasks [get]
 func getTasks(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	io.WriteString(w, "Hello world!")
-	//toEunomia <- "FOO"
+	u, _ := url.Parse(r.URL.String())
+	queryParams := u.Query()
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	if val, ok := queryParams["tag"]; ok {
+		if err := json.NewEncoder(w).Encode(types.GetTasksByTag(val[0])); err != nil {
+			panic(err)
+		}
+	} else {
+		if err := json.NewEncoder(w).Encode(types.GetTasks()); err != nil {
+			panic(err)
+		}
+	}
 }

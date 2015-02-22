@@ -19,7 +19,7 @@ type Action struct {
 	Failure   string `cql:"failure"`
 }
 
-func GetAction(actionUUID gocql.UUID) Action {
+func GetAction(actionUUID *gocql.UUID) Action {
 	query := session.Query("select * from actions where action_uuid = ?", actionUUID)
 	bind := cqlr.BindQuery(query)
 	var action Action

@@ -171,7 +171,10 @@ func (q *Queue) LoadTasks() {
 		uuid := gocql.UUID{}
 		iteration := session.Query("select task_uuid from tasks where queue_uuid = ?", q.UUID).Iter()
 		for iteration.Scan(&uuid) {
-			q.Tasks = append(q.Tasks, GetTaskWithQueue(q.UUID, uuid))
+			task, err := GetTaskWithQueue(q.UUID, uuid)
+			if err == nil {
+				q.Tasks = append(q.Tasks, task)
+			}
 		}
 	}
 }

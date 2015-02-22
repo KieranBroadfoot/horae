@@ -16,7 +16,6 @@ import (
 // @Resource /queues
 // @Router /queue/{uuid} [get]
 func getQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
 	vars := mux.Vars(r)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	queue, qerr := types.GetQueue(vars["uuid"])
@@ -39,7 +38,6 @@ func getQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eunom
 // @Resource /queues
 // @Router /queue [put]
 func createQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	queue := new(types.Queue)
 	err := json.NewDecoder(r.Body).Decode(queue)
@@ -75,7 +73,6 @@ func createQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 // @Resource /queues
 // @Router /queue/{uuid} [put]
 func updateQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	queue := new(types.Queue)
 	err := json.NewDecoder(r.Body).Decode(queue)

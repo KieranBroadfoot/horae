@@ -1,8 +1,9 @@
 package eirene
 
 import (
+	"encoding/json"
+	"github.com/gorilla/mux"
 	"github.com/kieranbroadfoot/horae/types"
-	"io"
 	"net/http"
 )
 
@@ -15,9 +16,17 @@ import (
 // @Resource /tasks
 // @Router /task/{uuid} [get]
 func getTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
-	io.WriteString(w, "Hello world!")
-	//toEunomia <- "FOO"
+	vars := mux.Vars(r)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	task, terr := types.GetTask(vars["uuid"])
+	if terr != nil {
+		returnError(w, 404, "Task not found")
+	} else {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(task); err != nil {
+			panic(err)
+		}
+	}
 }
 
 // @Title createtask
@@ -29,9 +38,29 @@ func getTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eunomi
 // @Resource /tasks
 // @Router /task [put]
 func createTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
-	io.WriteString(w, "Hello world!")
-	//toEunomia <- "FOO"
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	task := new(types.Task)
+	err := json.NewDecoder(r.Body).Decode(task)
+	if err != nil {
+		returnError(w, 400, "Badly formed request")
+	} else {
+		// TODO - update docs to show that uuid should not be passed on creation
+		if task.UUID.String() != "00000000-0000-0000-0000-000000000000" {
+			// marshalling json will create a dummy UUID if one was not specified.
+			returnError(w, 400, "Task not saved: cannot specify UUID on create")
+		} else {
+			terr := task.CreateOrUpdate()
+			if terr != nil {
+				returnError(w, 400, "Task not saved: "+terr.Error())
+			} else {
+				w.WriteHeader(http.StatusOK)
+				if err := json.NewEncoder(w).Encode(task); err != nil {
+					panic(err)
+				}
+				//toEunomia <- "FOO"
+			}
+		}
+	}
 }
 
 // @Title updatetask
@@ -44,9 +73,20 @@ func createTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 // @Resource /tasks
 // @Router /task/{uuid} [put]
 func updateTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
-	io.WriteString(w, "Hello world!")
-	//toEunomia <- "FOO"
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	task := new(types.Task)
+	err := json.NewDecoder(r.Body).Decode(task)
+	if err != nil {
+		returnError(w, 400, "Badly formed request")
+	} else {
+		terr := task.CreateOrUpdate()
+		if terr != nil {
+			returnError(w, 400, "Task not updated: "+terr.Error())
+		} else {
+			//toEunomia <- "FOO"
+			returnSuccess(w, "Task updated")
+		}
+	}
 }
 
 // @Title deletetask
@@ -58,9 +98,20 @@ func updateTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 // @Resource /tasks
 // @Router /task/{uuid} [delete]
 func deleteTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
-	io.WriteString(w, "Hello world!")
-	//toEunomia <- "FOO"
+	vars := mux.Vars(r)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	task, terr := types.GetTask(vars["uuid"])
+	if terr != nil {
+		returnError(w, 404, "Task not found")
+	} else {
+		terr := task.Delete()
+		if terr != nil {
+			returnError(w, 400, "Task not deleted: "+terr.Error())
+		} else {
+			//toEunomia <- "FOO"
+			returnSuccess(w, "Task deleted")
+		}
+	}
 }
 
 // @Title completetask
@@ -72,7 +123,18 @@ func deleteTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 // @Resource /tasks
 // @Router /task/{uuid}/complete [get]
 func completeTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - consider how best to marshall tags and paths into resulting object
-	io.WriteString(w, "Hello world!")
-	//toEunomia <- "FOO"
+	vars := mux.Vars(r)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	task, terr := types.GetTask(vars["uuid"])
+	if terr != nil {
+		returnError(w, 404, "Task not found")
+	} else {
+		terr := task.SetStatus(types.TaskComplete)
+		if terr != nil {
+			returnError(w, 400, "Task not completed: "+terr.Error())
+		} else {
+			//toEunomia <- "FOO"
+			returnSuccess(w, "Task completed")
+		}
+	}
 }
