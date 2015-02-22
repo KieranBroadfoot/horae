@@ -63,6 +63,21 @@ func GetTasksByTag(tag string) []Task {
 	return tasks
 }
 
+func GetTasksByQueue(queue string) []Task {
+	var id gocql.UUID
+	var task Task
+	tasks := []Task{}
+	iteration := session.Query("select task_uuid from tasks where queue_uuid = ?", queue).Iter()
+	for iteration.Scan(&id) {
+		q := session.Query("select * from tasks where task_uuid = ? allow filtering", id)
+		b := cqlr.BindQuery(q)
+		b.Scan(&task)
+		task.LoadTags()
+		tasks = append(tasks, task)
+	}
+	return tasks
+}
+
 func GetTaskWithQueue(queueUUID gocql.UUID, taskUUID gocql.UUID) (Task, error) {
 	query := session.Query("select * from tasks where queue_uuid = ? and task_uuid = ?", queueUUID, taskUUID)
 	return bindActionsToTask(query)

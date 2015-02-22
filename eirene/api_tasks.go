@@ -25,6 +25,10 @@ func getTasks(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eunom
 		if err := json.NewEncoder(w).Encode(types.GetTasksByTag(val[0])); err != nil {
 			panic(err)
 		}
+	} else if val, ok := queryParams["queue"]; ok {
+		if err := json.NewEncoder(w).Encode(types.GetTasksByQueue(val[0])); err != nil {
+			panic(err)
+		}
 	} else {
 		if err := json.NewEncoder(w).Encode(types.GetTasks()); err != nil {
 			panic(err)
