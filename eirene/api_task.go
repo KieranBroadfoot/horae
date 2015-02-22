@@ -30,7 +30,7 @@ func getTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eunomi
 }
 
 // @Title createtask
-// @Description The endpoint defines a method to create a task within Horae.  The task must always provide the callback API and Operation to call when initiated.  It may also include an optional payload value (typically a json blob) to be sent to the executing service. It must also define EITHER a queue into which it should be placed or an execution time (in UTC).  If an execution time is requested the task is placed into the "default" queue.  Optionally a task may define a series of tags in order to aid in searching.
+// @Description The endpoint defines a method to create a task within Horae.  The task must always provide an action reference to be executed on initiation.  It must also define EITHER a queue into which it should be placed or an execution time (in UTC).  If an execution time is requested the task MUST be placed into the "default" queue.  Optionally a task may define a series of tags in order to aid in searching.
 // @Accept  json
 // @Param   task     query    types.Task     true        "A task object"
 // @Success 200 {object} types.Success
@@ -73,6 +73,7 @@ func createTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 // @Resource /tasks
 // @Router /task/{uuid} [put]
 func updateTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
+	// TODO - check for queue changes and fail.
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	task := new(types.Task)
 	err := json.NewDecoder(r.Body).Decode(task)
