@@ -7,6 +7,7 @@
 // @LicenseUrl http://www.apache.org/licenses/LICENSE-2.0
 // @SubApi Queues [/queues]
 // @SubApi Tasks [/tasks]
+// @SubApi Actions [/actions]
 
 package eirene
 

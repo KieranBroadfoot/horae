@@ -227,39 +227,30 @@
         },
         "github.com.kieranbroadfoot.horae.types.Action": {
             "id": "github.com.kieranbroadfoot.horae.types.Action",
+            "required": [
+                "uuid"
+            ],
             "properties": {
-                "Failure": {
+                "failure": {
                     "type": "string",
                     "description": "",
                     "items": {},
                     "format": ""
                 },
-                "Operation": {
+                "operation": {
                     "type": "string",
                     "description": "",
                     "items": {},
                     "format": ""
                 },
-                "Payload": {
+                "payload": {
                     "type": "string",
                     "description": "",
                     "items": {},
                     "format": ""
                 },
-                "Status": {
+                "status": {
                     "type": "string",
-                    "description": "",
-                    "items": {},
-                    "format": ""
-                },
-                "URI": {
-                    "type": "string",
-                    "description": "",
-                    "items": {},
-                    "format": ""
-                },
-                "UUID": {
-                    "type": "github.com.gocql.gocql.UUID",
                     "description": "",
                     "items": {},
                     "format": ""
@@ -270,6 +261,18 @@
                     "items": {
                         "type": "string"
                     },
+                    "format": ""
+                },
+                "uri": {
+                    "type": "string",
+                    "description": "",
+                    "items": {},
+                    "format": ""
+                },
+                "uuid": {
+                    "type": "github.com.gocql.gocql.UUID",
+                    "description": "",
+                    "items": {},
                     "format": ""
                 }
             }

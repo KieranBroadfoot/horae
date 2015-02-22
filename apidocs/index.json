@@ -7,12 +7,12 @@
             "description": "Queues"
         },
         {
-            "path": "/tasks",
-            "description": "Tasks"
+            "path": "/actions",
+            "description": "Actions"
         },
         {
-            "path": "/actions",
-            "description": "The action endpoint will return a known Action with the appropriate UUID.  UUIDs are created by Horae during creation."
+            "path": "/tasks",
+            "description": "Tasks"
         }
     ],
     "info": {

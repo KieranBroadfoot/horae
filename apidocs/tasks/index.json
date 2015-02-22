@@ -8,62 +8,6 @@
     ],
     "apis": [
         {
-            "path": "/tasks",
-            "description": "This endpoint will return tasks known to Horae, either as an array or based on specific criteria (tag or queue).",
-            "operations": [
-                {
-                    "httpMethod": "GET",
-                    "nickname": "tasks",
-                    "type": "array",
-                    "items": {
-                        "$ref": "github.com.kieranbroadfoot.horae.types.Task"
-                    },
-                    "summary": "This endpoint will return tasks known to Horae, either as an array or based on specific criteria (tag or queue).",
-                    "parameters": [
-                        {
-                            "paramType": "query",
-                            "name": "tag",
-                            "description": "Tag against which you wish to limit tasks returned",
-                            "dataType": "string",
-                            "type": "string",
-                            "format": "",
-                            "allowMultiple": false,
-                            "required": false,
-                            "minimum": 0,
-                            "maximum": 0
-                        },
-                        {
-                            "paramType": "query",
-                            "name": "queue",
-                            "description": "UUID of queue to scope tasks returned",
-                            "dataType": "string",
-                            "type": "string",
-                            "format": "",
-                            "allowMultiple": false,
-                            "required": false,
-                            "minimum": 0,
-                            "maximum": 0
-                        }
-                    ],
-                    "responseMessages": [
-                        {
-                            "code": 200,
-                            "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Task"
-                        },
-                        {
-                            "code": 400,
-                            "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
-                        }
-                    ],
-                    "produces": [
-                        "application/json"
-                    ]
-                }
-            ]
-        },
-        {
             "path": "/task/{uuid}",
             "description": "The task endpoint will return a known Task with the appropriate UUID.  UUIDs are created by Horae during creation.",
             "operations": [
@@ -260,6 +204,62 @@
                             "code": 200,
                             "message": "",
                             "responseModel": "github.com.kieranbroadfoot.horae.types.Success"
+                        },
+                        {
+                            "code": 400,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
+                        }
+                    ],
+                    "produces": [
+                        "application/json"
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/tasks",
+            "description": "This endpoint will return tasks known to Horae, either as an array or based on specific criteria (tag or queue).",
+            "operations": [
+                {
+                    "httpMethod": "GET",
+                    "nickname": "tasks",
+                    "type": "array",
+                    "items": {
+                        "$ref": "github.com.kieranbroadfoot.horae.types.Task"
+                    },
+                    "summary": "This endpoint will return tasks known to Horae, either as an array or based on specific criteria (tag or queue).",
+                    "parameters": [
+                        {
+                            "paramType": "query",
+                            "name": "tag",
+                            "description": "Tag against which you wish to limit tasks returned",
+                            "dataType": "string",
+                            "type": "string",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": false,
+                            "minimum": 0,
+                            "maximum": 0
+                        },
+                        {
+                            "paramType": "query",
+                            "name": "queue",
+                            "description": "UUID of queue to scope tasks returned",
+                            "dataType": "string",
+                            "type": "string",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": false,
+                            "minimum": 0,
+                            "maximum": 0
+                        }
+                    ],
+                    "responseMessages": [
+                        {
+                            "code": 200,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Task"
                         },
                         {
                             "code": 400,
