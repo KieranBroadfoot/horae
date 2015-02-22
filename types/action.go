@@ -11,12 +11,12 @@ import (
 )
 
 type Action struct {
-	UUID      gocql.UUID `cql:"action_uuid"`
-	Operation string     `cql:"operation"`
-	Payload   string     `cql:"payload"`
-	URI       string     `cql:"uri"`
-	Status    string     `cql:"status"`
-	Failure   string     `cql:"failure"`
+	UUID      gocql.UUID `cql:"action_uuid" json:"uuid,required"`
+	Operation string     `cql:"operation" json:"operation,omitempty"`
+	Payload   string     `cql:"payload" json:"payload,omitempty"`
+	URI       string     `cql:"uri" json:"uri,omitempty"`
+	Status    string     `cql:"status" json:"status,omitempty"`
+	Failure   string     `cql:"failure" json:"failure,omitempty"`
 	OurTags   []string   `json:"tags,omitempty" description:"Tags assigned to the action."`
 }
 
@@ -59,9 +59,12 @@ func GetAction(actionUUID string) (Action, error) {
 }
 
 func (action *Action) CreateOrUpdate() error {
+	if action.UUID.String() == "00000000-0000-0000-0000-000000000000" {
+		// action was generated from json with an unknown UUID.  Fix up
+		action.UUID = gocql.TimeUUID()
+	}
 	bind := cqlr.Bind(`insert into actions (action_uuid, operation, uri, payload, status, failure) values (?, ?, ?, ?, ?, ?)`, action)
 	if err := bind.Exec(session); err != nil {
-		log.Print("GOT ERR: ", err)
 		return err
 	} else {
 		return nil
