@@ -2,40 +2,28 @@
     "apiVersion": "1.0",
     "swaggerVersion": "1.2",
     "basePath": "http://horae.kieranbroadfoot.com",
-    "resourcePath": "/tasks",
+    "resourcePath": "/queues",
     "produces": [
         "application/json"
     ],
     "apis": [
         {
-            "path": "/tasks",
-            "description": "This endpoint will return tasks known to Horae, either as an array or based on specific criteria (tag or queue).",
+            "path": "/queues",
+            "description": "The queues endpoint provides information regarding the available queues known to Horae. This will always include the \"default\" asynchronous queue.",
             "operations": [
                 {
                     "httpMethod": "GET",
-                    "nickname": "tasks",
+                    "nickname": "queues",
                     "type": "array",
                     "items": {
-                        "$ref": "github.com.kieranbroadfoot.horae.types.Task"
+                        "$ref": "github.com.kieranbroadfoot.horae.types.Queue"
                     },
-                    "summary": "This endpoint will return tasks known to Horae, either as an array or based on specific criteria (tag or queue).",
+                    "summary": "The queues endpoint provides information regarding the available queues known to Horae. This will always include the \"default\" asynchronous queue.",
                     "parameters": [
                         {
                             "paramType": "query",
                             "name": "tag",
-                            "description": "Tag against which you wish to limit tasks returned",
-                            "dataType": "string",
-                            "type": "string",
-                            "format": "",
-                            "allowMultiple": false,
-                            "required": false,
-                            "minimum": 0,
-                            "maximum": 0
-                        },
-                        {
-                            "paramType": "query",
-                            "name": "queue",
-                            "description": "UUID of queue to scope tasks returned",
+                            "description": "Tag against which you wish to limit queues returned",
                             "dataType": "string",
                             "type": "string",
                             "format": "",
@@ -49,7 +37,7 @@
                         {
                             "code": 200,
                             "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Task"
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Queue"
                         },
                         {
                             "code": 400,
@@ -64,20 +52,20 @@
             ]
         },
         {
-            "path": "/task/{uuid}",
-            "description": "The task endpoint will return a known Task with the appropriate UUID.  UUIDs are created by Horae during creation.",
+            "path": "/queue/{uuid}",
+            "description": "Provides details of the requested queue including availability windows, type, associated tags and paths.",
             "operations": [
                 {
                     "httpMethod": "GET",
-                    "nickname": "querytask",
-                    "type": "github.com.kieranbroadfoot.horae.types.Task",
+                    "nickname": "queryqueue",
+                    "type": "github.com.kieranbroadfoot.horae.types.Queue",
                     "items": {},
-                    "summary": "The task endpoint will return a known Task with the appropriate UUID.  UUIDs are created by Horae during creation.",
+                    "summary": "Provides details of the requested queue including availability windows, type, associated tags and paths.",
                     "parameters": [
                         {
                             "paramType": "path",
                             "name": "uuid",
-                            "description": "UUID of the requested task",
+                            "description": "UUID of the requested queue",
                             "dataType": "string",
                             "type": "string",
                             "format": "",
@@ -91,11 +79,11 @@
                         {
                             "code": 200,
                             "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Task"
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Queue"
                         },
                         {
-                            "code": 400,
-                            "message": "",
+                            "code": 404,
+                            "message": "Queue not found",
                             "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
                         }
                     ],
@@ -105,15 +93,15 @@
                 },
                 {
                     "httpMethod": "PUT",
-                    "nickname": "updatetask",
+                    "nickname": "updatequeue",
                     "type": "github.com.kieranbroadfoot.horae.types.Success",
                     "items": {},
-                    "summary": "A task may ONLY update its callback API endpoint or execution time (if it exists within the default queue).  If the task needs to be moved between queues then both delete and create should be undertaken.  The task may require changes to its behaviour to meet the requisite queues behaviour.",
+                    "summary": "A queue may be updated via this endpoint.  The name, window of operation, and backpressure configuration.  If the window of operation is changed whilst it is active those tasks in-flight will continue but any others will be held back until the next window of operation.  Queues cannot change their \"type\" from sync to async or vice-versa.  You would need to delete and recreate because you would need to define the draining behaviour and existing tasks may not be aware of the need to callback on completion (when moving from async to sync).",
                     "parameters": [
                         {
                             "paramType": "path",
                             "name": "uuid",
-                            "description": "UUID for updated task",
+                            "description": "UUID for updated queue",
                             "dataType": "string",
                             "type": "string",
                             "format": "",
@@ -125,9 +113,9 @@
                         {
                             "paramType": "query",
                             "name": "queue",
-                            "description": "A task object",
-                            "dataType": "github.com.kieranbroadfoot.horae.types.Task",
-                            "type": "github.com.kieranbroadfoot.horae.types.Task",
+                            "description": "A queue object",
+                            "dataType": "github.com.kieranbroadfoot.horae.types.Queue",
+                            "type": "github.com.kieranbroadfoot.horae.types.Queue",
                             "format": "",
                             "allowMultiple": false,
                             "required": true,
@@ -153,20 +141,32 @@
                 },
                 {
                     "httpMethod": "DELETE",
-                    "nickname": "deletetask",
+                    "nickname": "deletequeue",
                     "type": "github.com.kieranbroadfoot.horae.types.Success",
                     "items": {},
-                    "summary": "When a task is deleted it will be immediately removed unless it is currently in execution (via a sync queue).  In this case the task will continue to complete as expected.",
+                    "summary": "When called a defined queue will either be immediately removed and all associated tasks deleted OR if requested the queue will be defined as \"drain-only\" which will delete the queue when it is empty.",
                     "parameters": [
                         {
                             "paramType": "path",
                             "name": "uuid",
-                            "description": "UUID of the task to be deleted",
+                            "description": "Tag against which you wish to limit queues returned",
                             "dataType": "string",
                             "type": "string",
                             "format": "",
                             "allowMultiple": false,
                             "required": true,
+                            "minimum": 0,
+                            "maximum": 0
+                        },
+                        {
+                            "paramType": "query",
+                            "name": "shouldDrain",
+                            "description": "If empty to set to false the queue will be immediately deleted along with any associated tasks.  If set to true the queue will only be removed when the queue is empty.  No new tasks can be added to the queue once set.",
+                            "dataType": "bool",
+                            "type": "bool",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": false,
                             "minimum": 0,
                             "maximum": 0
                         }
@@ -190,22 +190,22 @@
             ]
         },
         {
-            "path": "/task",
-            "description": "The endpoint defines a method to create a task within Horae.  The task must always provide an action reference to be executed on initiation.  It must also define EITHER a queue into which it should be placed or an execution time (in UTC).  If an execution time is requested the task MUST be placed into the \"default\" queue.  Optionally a task may define a series of tags in order to aid in searching.",
+            "path": "/queue",
+            "description": "This endpoint enables the creation of a new queue.  All queues must be defined with a unique name and window of operation and type.  Optionally you may also define a series of tags to help searching for a particular queue or queues.  The queue type is either \"sync\" or \"async\".  If defined as \"async\" then any tasks available in the queue will be executed in the next availability window.  However, sync queues will execute tasks in a FIFO manner during the availability window.  To enable this, tasks associated to the queue must execute a task completion call when finished to ensure Horae can continue execution.  Optionally sync queues may also define a backpressure URI, operation, payload AND definition.  If Horae starts to see the queue meet the backpressure definition the callback will be executed.",
             "operations": [
                 {
                     "httpMethod": "PUT",
-                    "nickname": "createtask",
-                    "type": "github.com.kieranbroadfoot.horae.types.Success",
+                    "nickname": "createqueue",
+                    "type": "github.com.kieranbroadfoot.horae.types.Queue",
                     "items": {},
-                    "summary": "The endpoint defines a method to create a task within Horae.  The task must always provide an action reference to be executed on initiation.  It must also define EITHER a queue into which it should be placed or an execution time (in UTC).  If an execution time is requested the task MUST be placed into the \"default\" queue.  Optionally a task may define a series of tags in order to aid in searching.",
+                    "summary": "This endpoint enables the creation of a new queue.  All queues must be defined with a unique name and window of operation and type.  Optionally you may also define a series of tags to help searching for a particular queue or queues.  The queue type is either \"sync\" or \"async\".  If defined as \"async\" then any tasks available in the queue will be executed in the next availability window.  However, sync queues will execute tasks in a FIFO manner during the availability window.  To enable this, tasks associated to the queue must execute a task completion call when finished to ensure Horae can continue execution.  Optionally sync queues may also define a backpressure URI, operation, payload AND definition.  If Horae starts to see the queue meet the backpressure definition the callback will be executed.",
                     "parameters": [
                         {
                             "paramType": "query",
-                            "name": "task",
-                            "description": "A task object",
-                            "dataType": "github.com.kieranbroadfoot.horae.types.Task",
-                            "type": "github.com.kieranbroadfoot.horae.types.Task",
+                            "name": "queue",
+                            "description": "A queue object",
+                            "dataType": "github.com.kieranbroadfoot.horae.types.Queue",
+                            "type": "github.com.kieranbroadfoot.horae.types.Queue",
                             "format": "",
                             "allowMultiple": false,
                             "required": true,
@@ -217,49 +217,7 @@
                         {
                             "code": 200,
                             "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Success"
-                        },
-                        {
-                            "code": 400,
-                            "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
-                        }
-                    ],
-                    "produces": [
-                        "application/json"
-                    ]
-                }
-            ]
-        },
-        {
-            "path": "/task/{uuid}/complete",
-            "description": "When a task is defined within a synchronous queue it is essential that it signals completion to Horae.  This endpoint provides that completion mechanism.",
-            "operations": [
-                {
-                    "httpMethod": "GET",
-                    "nickname": "completetask",
-                    "type": "github.com.kieranbroadfoot.horae.types.Success",
-                    "items": {},
-                    "summary": "When a task is defined within a synchronous queue it is essential that it signals completion to Horae.  This endpoint provides that completion mechanism.",
-                    "parameters": [
-                        {
-                            "paramType": "path",
-                            "name": "uuid",
-                            "description": "UUID of completing task",
-                            "dataType": "string",
-                            "type": "string",
-                            "format": "",
-                            "allowMultiple": false,
-                            "required": true,
-                            "minimum": 0,
-                            "maximum": 0
-                        }
-                    ],
-                    "responseMessages": [
-                        {
-                            "code": 200,
-                            "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Success"
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Queue"
                         },
                         {
                             "code": 400,
@@ -300,6 +258,72 @@
                 }
             }
         },
+        "github.com.kieranbroadfoot.horae.types.Queue": {
+            "id": "github.com.kieranbroadfoot.horae.types.Queue",
+            "required": [
+                "uuid"
+            ],
+            "properties": {
+                "backpressureAction": {
+                    "type": "github.com.gocql.gocql.UUID",
+                    "description": "The unique identifier of an action to be called in the event that the backpressure definition is breached",
+                    "items": {},
+                    "format": ""
+                },
+                "backpressureDefinition": {
+                    "type": "string",
+                    "description": "For synchronous queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called.",
+                    "items": {},
+                    "format": ""
+                },
+                "name": {
+                    "type": "string",
+                    "description": "The unique name of the queue",
+                    "items": {},
+                    "format": ""
+                },
+                "paths": {
+                    "type": "array",
+                    "description": "Paths assigned to the queue.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "format": ""
+                },
+                "queueType": {
+                    "type": "string",
+                    "description": "The type of queue: sync or async",
+                    "items": {},
+                    "format": ""
+                },
+                "shouldDrain": {
+                    "type": "bool",
+                    "description": "The expected behaviour of the queue when it is deleted. If true the queue will drain (and no longer accept new requests) before it is deleted.  Defaults to true",
+                    "items": {},
+                    "format": ""
+                },
+                "tags": {
+                    "type": "array",
+                    "description": "Tags assigned to the queue.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "format": ""
+                },
+                "uuid": {
+                    "type": "github.com.gocql.gocql.UUID",
+                    "description": "The unique identifier of the queue",
+                    "items": {},
+                    "format": ""
+                },
+                "windowOfOperation": {
+                    "type": "string",
+                    "description": "The window of operation for the queue if defined as sync",
+                    "items": {},
+                    "format": ""
+                }
+            }
+        },
         "github.com.kieranbroadfoot.horae.types.Success": {
             "id": "github.com.kieranbroadfoot.horae.types.Success",
             "required": [
@@ -309,72 +333,6 @@
                 "message": {
                     "type": "string",
                     "description": "Returned status message",
-                    "items": {},
-                    "format": ""
-                }
-            }
-        },
-        "github.com.kieranbroadfoot.horae.types.Task": {
-            "id": "github.com.kieranbroadfoot.horae.types.Task",
-            "required": [
-                "uuid",
-                "execution",
-                "status"
-            ],
-            "properties": {
-                "execution": {
-                    "type": "github.com.gocql.gocql.UUID",
-                    "description": "The unique identifier of the executing action",
-                    "items": {},
-                    "format": ""
-                },
-                "name": {
-                    "type": "string",
-                    "description": "The name of the task",
-                    "items": {},
-                    "format": ""
-                },
-                "priority": {
-                    "type": "uint64",
-                    "description": "The priority of the task. If the queue is sync ordered by priority otherwise ordered by exec time and then priority",
-                    "items": {},
-                    "format": ""
-                },
-                "promise": {
-                    "type": "github.com.gocql.gocql.UUID",
-                    "description": "The unique identifier of the promise, executed on successful completion of the execution action",
-                    "items": {},
-                    "format": ""
-                },
-                "queue": {
-                    "type": "github.com.gocql.gocql.UUID",
-                    "description": "The UUID of the hosting queue",
-                    "items": {},
-                    "format": ""
-                },
-                "status": {
-                    "type": "string",
-                    "description": "The status of the task (Pending/Running/Complete/Failed/Partially Failed)",
-                    "items": {},
-                    "format": ""
-                },
-                "tags": {
-                    "type": "array",
-                    "description": "Tags assigned to the task.",
-                    "items": {
-                        "type": "string"
-                    },
-                    "format": ""
-                },
-                "uuid": {
-                    "type": "github.com.gocql.gocql.UUID",
-                    "description": "The unique identifier of the task",
-                    "items": {},
-                    "format": ""
-                },
-                "when": {
-                    "type": "Time",
-                    "description": "The future execution timestamp of the task",
                     "items": {},
                     "format": ""
                 }

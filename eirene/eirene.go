@@ -26,6 +26,11 @@ func startAPIInterface(toCore chan bool, toEunomia chan types.EunomiaRequest, li
 	log.Print("Starting API Interface")
 
 	router := mux.NewRouter()
+	router.HandleFunc("/v1/actions", func(w http.ResponseWriter, r *http.Request) { getActions(w, r, toEunomia) }).Methods("GET")
+	router.HandleFunc("/v1/action/{uuid}", func(w http.ResponseWriter, r *http.Request) { getAction(w, r, toEunomia) }).Methods("GET")
+	router.HandleFunc("/v1/action", func(w http.ResponseWriter, r *http.Request) { createAction(w, r, toEunomia) }).Methods("PUT")
+	router.HandleFunc("/v1/action/{uuid}", func(w http.ResponseWriter, r *http.Request) { updateAction(w, r, toEunomia) }).Methods("PUT")
+	router.HandleFunc("/v1/action/{uuid}", func(w http.ResponseWriter, r *http.Request) { deleteAction(w, r, toEunomia) }).Methods("DELETE")
 	router.HandleFunc("/v1/tasks", func(w http.ResponseWriter, r *http.Request) { getTasks(w, r, toEunomia) }).Methods("GET")
 	router.HandleFunc("/v1/task/{uuid}", func(w http.ResponseWriter, r *http.Request) { getTask(w, r, toEunomia) }).Methods("GET")
 	router.HandleFunc("/v1/task", func(w http.ResponseWriter, r *http.Request) { createTask(w, r, toEunomia) }).Methods("PUT")

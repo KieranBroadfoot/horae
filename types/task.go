@@ -82,10 +82,10 @@ func bindActionsToTask(query *gocql.Query) (Task, error) {
 	task.LoadTags()
 	// at this point we have the Task object. Now find associated actions
 	if task.PromiseAction != nil {
-		task.Promise = GetAction(task.PromiseAction)
+		task.Promise, _ = GetAction(task.PromiseAction.String())
 	}
 	if task.ExecutionAction != nil {
-		task.Execution = GetAction(task.ExecutionAction)
+		task.Execution, _ = GetAction(task.ExecutionAction.String())
 	}
 	return task, nil
 }

@@ -11,20 +11,51 @@ import (
 )
 
 type Action struct {
-	UUID      string `cql:"action_uuid"`
-	Operation string `cql:"operation"`
-	Payload   string `cql:"payload"`
-	URI       string `cql:"uri"`
-	Status    string `cql:"status"`
-	Failure   string `cql:"failure"`
+	UUID      gocql.UUID `cql:"action_uuid"`
+	Operation string     `cql:"operation"`
+	Payload   string     `cql:"payload"`
+	URI       string     `cql:"uri"`
+	Status    string     `cql:"status"`
+	Failure   string     `cql:"failure"`
+	OurTags   []string   `json:"tags,omitempty" description:"Tags assigned to the action."`
 }
 
-func GetAction(actionUUID *gocql.UUID) Action {
+func GetActions() []Action {
+	query := session.Query("select * from actions")
+	bind := cqlr.BindQuery(query)
+	var action Action
+	actions := []Action{}
+	for bind.Scan(&action) {
+		action.LoadTags()
+		actions = append(actions, action)
+	}
+	return actions
+}
+
+func GetActionsByTag(tag string) []Action {
+	var id gocql.UUID
+	var action Action
+	actions := []Action{}
+	iteration := session.Query("select object_uuid from tags where type = 'action' and tag = ? allow filtering", tag).Iter()
+	for iteration.Scan(&id) {
+		q := session.Query("select * from actions where action_uuid = ? allow filtering", id)
+		b := cqlr.BindQuery(q)
+		b.Scan(&action)
+		action.LoadTags()
+		actions = append(actions, action)
+	}
+	return actions
+}
+
+func GetAction(actionUUID string) (Action, error) {
 	query := session.Query("select * from actions where action_uuid = ?", actionUUID)
 	bind := cqlr.BindQuery(query)
 	var action Action
-	bind.Scan(&action)
-	return action
+	if !bind.Scan(&action) {
+		return Action{}, errors.New("Unknown action")
+	}
+	action.LoadTags()
+	return action, nil
 }
 
 func (action *Action) CreateOrUpdate() error {
@@ -38,6 +69,7 @@ func (action *Action) CreateOrUpdate() error {
 }
 
 func (action *Action) Delete() error {
+	action.DeleteTags()
 	bind := cqlr.Bind(`delete from actions where action_uuid = ?`, action)
 	if err := bind.Exec(session); err != nil {
 		log.Print("received error from delete")
@@ -45,6 +77,18 @@ func (action *Action) Delete() error {
 	} else {
 		return nil
 	}
+}
+
+func (a *Action) LoadTags() {
+	a.OurTags = GetTagsForObject(a.UUID)
+}
+
+func (a Action) CreateOrUpdateTags() {
+	SetTagsForObject(a.UUID, a.OurTags, "action")
+}
+
+func (a Action) DeleteTags() {
+	DeleteTagsForObject(a.UUID)
 }
 
 func (action *Action) ExecuteAction(sync bool) bool {

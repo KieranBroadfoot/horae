@@ -1,0 +1,313 @@
+{
+    "apiVersion": "1.0",
+    "swaggerVersion": "1.2",
+    "basePath": "http://horae.kieranbroadfoot.com",
+    "resourcePath": "/actions",
+    "produces": [
+        "application/json"
+    ],
+    "apis": [
+        {
+            "path": "/action/{uuid}",
+            "description": "The action endpoint will return a known Action with the appropriate UUID.  UUIDs are created by Horae during creation.",
+            "operations": [
+                {
+                    "httpMethod": "GET",
+                    "nickname": "queryaction",
+                    "type": "github.com.kieranbroadfoot.horae.types.Action",
+                    "items": {},
+                    "summary": "The action endpoint will return a known Action with the appropriate UUID.  UUIDs are created by Horae during creation.",
+                    "parameters": [
+                        {
+                            "paramType": "path",
+                            "name": "uuid",
+                            "description": "UUID of the requested action",
+                            "dataType": "string",
+                            "type": "string",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": false,
+                            "minimum": 0,
+                            "maximum": 0
+                        }
+                    ],
+                    "responseMessages": [
+                        {
+                            "code": 200,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Action"
+                        },
+                        {
+                            "code": 400,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
+                        }
+                    ],
+                    "produces": [
+                        "application/json"
+                    ]
+                },
+                {
+                    "httpMethod": "PUT",
+                    "nickname": "updateaction",
+                    "type": "github.com.kieranbroadfoot.horae.types.Success",
+                    "items": {},
+                    "summary": "A action may update its callback API endpoint, payload or operation types.",
+                    "parameters": [
+                        {
+                            "paramType": "path",
+                            "name": "uuid",
+                            "description": "UUID for updated action",
+                            "dataType": "string",
+                            "type": "string",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": true,
+                            "minimum": 0,
+                            "maximum": 0
+                        },
+                        {
+                            "paramType": "query",
+                            "name": "queue",
+                            "description": "An action object",
+                            "dataType": "github.com.kieranbroadfoot.horae.types.Action",
+                            "type": "github.com.kieranbroadfoot.horae.types.Action",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": true,
+                            "minimum": 0,
+                            "maximum": 0
+                        }
+                    ],
+                    "responseMessages": [
+                        {
+                            "code": 200,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Success"
+                        },
+                        {
+                            "code": 400,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
+                        }
+                    ],
+                    "produces": [
+                        "application/json"
+                    ]
+                },
+                {
+                    "httpMethod": "DELETE",
+                    "nickname": "deleteaction",
+                    "type": "github.com.kieranbroadfoot.horae.types.Success",
+                    "items": {},
+                    "summary": "When an action is deleted it will be immediately removed.  It is advised to ensure tasks associated with the action are disabled/deleted in advance.",
+                    "parameters": [
+                        {
+                            "paramType": "path",
+                            "name": "uuid",
+                            "description": "UUID of the action to be deleted",
+                            "dataType": "string",
+                            "type": "string",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": true,
+                            "minimum": 0,
+                            "maximum": 0
+                        }
+                    ],
+                    "responseMessages": [
+                        {
+                            "code": 200,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Success"
+                        },
+                        {
+                            "code": 400,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
+                        }
+                    ],
+                    "produces": [
+                        "application/json"
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/action",
+            "description": "The endpoint defines a method to create an action within Horae.  The action must always provide the URI and Operation to call when initiated.  It may also include an optional payload value (typically a json blob) to be sent to the executing service. Optionally a action may define a series of tags in order to aid in searching.",
+            "operations": [
+                {
+                    "httpMethod": "PUT",
+                    "nickname": "createaction",
+                    "type": "github.com.kieranbroadfoot.horae.types.Success",
+                    "items": {},
+                    "summary": "The endpoint defines a method to create an action within Horae.  The action must always provide the URI and Operation to call when initiated.  It may also include an optional payload value (typically a json blob) to be sent to the executing service. Optionally a action may define a series of tags in order to aid in searching.",
+                    "parameters": [
+                        {
+                            "paramType": "query",
+                            "name": "action",
+                            "description": "A action object",
+                            "dataType": "github.com.kieranbroadfoot.horae.types.Action",
+                            "type": "github.com.kieranbroadfoot.horae.types.Action",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": true,
+                            "minimum": 0,
+                            "maximum": 0
+                        }
+                    ],
+                    "responseMessages": [
+                        {
+                            "code": 200,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Success"
+                        },
+                        {
+                            "code": 400,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
+                        }
+                    ],
+                    "produces": [
+                        "application/json"
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/actions",
+            "description": "This endpoint will return actions known to Horae, either as an array or based on specific criteria (tag).",
+            "operations": [
+                {
+                    "httpMethod": "GET",
+                    "nickname": "actions",
+                    "type": "array",
+                    "items": {
+                        "$ref": "github.com.kieranbroadfoot.horae.types.Action"
+                    },
+                    "summary": "This endpoint will return actions known to Horae, either as an array or based on specific criteria (tag).",
+                    "parameters": [
+                        {
+                            "paramType": "query",
+                            "name": "tag",
+                            "description": "Tag against which you wish to limit actions returned",
+                            "dataType": "string",
+                            "type": "string",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": false,
+                            "minimum": 0,
+                            "maximum": 0
+                        }
+                    ],
+                    "responseMessages": [
+                        {
+                            "code": 200,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Action"
+                        },
+                        {
+                            "code": 400,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
+                        }
+                    ],
+                    "produces": [
+                        "application/json"
+                    ]
+                }
+            ]
+        }
+    ],
+    "models": {
+        "github.com.gocql.gocql.UUID": {
+            "id": "github.com.gocql.gocql.UUID",
+            "properties": null
+        },
+        "github.com.kieranbroadfoot.horae.types.Action": {
+            "id": "github.com.kieranbroadfoot.horae.types.Action",
+            "properties": {
+                "Failure": {
+                    "type": "string",
+                    "description": "",
+                    "items": {},
+                    "format": ""
+                },
+                "Operation": {
+                    "type": "string",
+                    "description": "",
+                    "items": {},
+                    "format": ""
+                },
+                "Payload": {
+                    "type": "string",
+                    "description": "",
+                    "items": {},
+                    "format": ""
+                },
+                "Status": {
+                    "type": "string",
+                    "description": "",
+                    "items": {},
+                    "format": ""
+                },
+                "URI": {
+                    "type": "string",
+                    "description": "",
+                    "items": {},
+                    "format": ""
+                },
+                "UUID": {
+                    "type": "github.com.gocql.gocql.UUID",
+                    "description": "",
+                    "items": {},
+                    "format": ""
+                },
+                "tags": {
+                    "type": "array",
+                    "description": "Tags assigned to the action.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "format": ""
+                }
+            }
+        },
+        "github.com.kieranbroadfoot.horae.types.Error": {
+            "id": "github.com.kieranbroadfoot.horae.types.Error",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "uint32",
+                    "description": "The unique identifier of the returned error",
+                    "items": {},
+                    "format": ""
+                },
+                "message": {
+                    "type": "string",
+                    "description": "An error message",
+                    "items": {},
+                    "format": ""
+                }
+            }
+        },
+        "github.com.kieranbroadfoot.horae.types.Success": {
+            "id": "github.com.kieranbroadfoot.horae.types.Success",
+            "required": [
+                "message"
+            ],
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Returned status message",
+                    "items": {},
+                    "format": ""
+                }
+            }
+        }
+    }
+}
