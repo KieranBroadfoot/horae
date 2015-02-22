@@ -30,6 +30,12 @@ quickly captured and updated
 
 func InitETCD(address string) {
 	etcdAddress = address
+	// check etcd is up
+	client := getEtcdClient()
+	_, err := client.Get("/", false, false)
+	if err != nil {
+		log.WithFields(log.Fields{"reason": err}).Fatal("Unable to init ETCD connection")
+	}
 }
 
 func getEtcdClient() *etcd.Client {

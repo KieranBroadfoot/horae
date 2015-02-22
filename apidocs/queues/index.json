@@ -8,50 +8,6 @@
     ],
     "apis": [
         {
-            "path": "/queues",
-            "description": "The queues endpoint provides information regarding the available queues known to Horae. This will always include the \"default\" asynchronous queue.",
-            "operations": [
-                {
-                    "httpMethod": "GET",
-                    "nickname": "queues",
-                    "type": "array",
-                    "items": {
-                        "$ref": "github.com.kieranbroadfoot.horae.types.Queue"
-                    },
-                    "summary": "The queues endpoint provides information regarding the available queues known to Horae. This will always include the \"default\" asynchronous queue.",
-                    "parameters": [
-                        {
-                            "paramType": "query",
-                            "name": "tag",
-                            "description": "Tag against which you wish to limit queues returned",
-                            "dataType": "string",
-                            "type": "string",
-                            "format": "",
-                            "allowMultiple": false,
-                            "required": false,
-                            "minimum": 0,
-                            "maximum": 0
-                        }
-                    ],
-                    "responseMessages": [
-                        {
-                            "code": 200,
-                            "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Queue"
-                        },
-                        {
-                            "code": 400,
-                            "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
-                        }
-                    ],
-                    "produces": [
-                        "application/json"
-                    ]
-                }
-            ]
-        },
-        {
             "path": "/queue/{uuid}",
             "description": "Provides details of the requested queue including availability windows, type, associated tags and paths.",
             "operations": [
@@ -209,6 +165,50 @@
                             "format": "",
                             "allowMultiple": false,
                             "required": true,
+                            "minimum": 0,
+                            "maximum": 0
+                        }
+                    ],
+                    "responseMessages": [
+                        {
+                            "code": 200,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Queue"
+                        },
+                        {
+                            "code": 400,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
+                        }
+                    ],
+                    "produces": [
+                        "application/json"
+                    ]
+                }
+            ]
+        },
+        {
+            "path": "/queues",
+            "description": "The queues endpoint provides information regarding the available queues known to Horae. This will always include the \"default\" asynchronous queue.",
+            "operations": [
+                {
+                    "httpMethod": "GET",
+                    "nickname": "queues",
+                    "type": "array",
+                    "items": {
+                        "$ref": "github.com.kieranbroadfoot.horae.types.Queue"
+                    },
+                    "summary": "The queues endpoint provides information regarding the available queues known to Horae. This will always include the \"default\" asynchronous queue.",
+                    "parameters": [
+                        {
+                            "paramType": "query",
+                            "name": "tag",
+                            "description": "Tag against which you wish to limit queues returned",
+                            "dataType": "string",
+                            "type": "string",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": false,
                             "minimum": 0,
                             "maximum": 0
                         }

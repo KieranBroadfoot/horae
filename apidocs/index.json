@@ -3,12 +3,12 @@
     "swaggerVersion": "1.2",
     "apis": [
         {
-            "path": "/queues",
-            "description": "Queues"
-        },
-        {
             "path": "/actions",
             "description": "Actions"
+        },
+        {
+            "path": "/queues",
+            "description": "Queues"
         },
         {
             "path": "/tasks",
