@@ -1,8 +1,4 @@
-package parser
-
-import (
-	"github.com/kieranbroadfoot/horae/types"
-)
+package types
 
 type stateFn func(*parser) stateFn
 
@@ -16,7 +12,7 @@ type item struct {
 type parser struct {
 	pos    int // current position in the input.
 	items  []item
-	window types.Window
+	window Window
 }
 
 const (

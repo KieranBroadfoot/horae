@@ -91,6 +91,10 @@ func (queue *Queue) CreateOrUpdate() error {
 	if queue.QueueType != "sync" && queue.QueueType != "async" {
 		return errors.New("Invalid queue type")
 	}
+	_, parseErr := Parse(queue.WindowOfOperation)
+	if parseErr != nil {
+		return errors.New("Invalid window definition: " + parseErr.Error())
+	}
 	queue.CreateOrUpdateTags()
 	queue.CreateOrUpdatePaths()
 	bind := cqlr.Bind(`insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition) values (?, ?, ?, ?, ?, ?, ?)`, queue)

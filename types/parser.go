@@ -1,26 +1,25 @@
-package parser
+package types
 
 import (
 	"errors"
 	"fmt"
-	"github.com/kieranbroadfoot/horae/types"
 	"strconv"
 	"strings"
 )
 
-func Parse(input string) (types.Window, error) {
+func Parse(input string) (Window, error) {
 	input = normalize(input)
 	items, err := lexer(input)
 	if err != nil {
-		return types.Window{}, err
+		return Window{}, err
 	}
 	p := &parser{
 		items:  items,
-		window: types.Window{},
+		window: Window{},
 	}
 	p.run()
 	if p.window.Error != "" {
-		return types.Window{}, errors.New(p.window.Error)
+		return Window{}, errors.New(p.window.Error)
 	} else {
 		return p.window, nil
 	}
