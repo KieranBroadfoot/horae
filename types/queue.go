@@ -23,6 +23,7 @@ type Queue struct {
 	OurTags                []string    `json:"tags,omitempty" description:"Tags assigned to the queue."`
 	OurPaths               []string    `json:"paths,omitempty" description:"Paths assigned to the queue."`
 	Tasks                  []Task      `json:"-"`
+	Window                 Window      `json:"-"`
 }
 
 // Query
@@ -114,6 +115,16 @@ func (queue Queue) Delete() error {
 	} else {
 		return nil
 	}
+}
+
+func (q *Queue) LoadWindow() error {
+	window, parseErr := Parse(q.WindowOfOperation)
+	if parseErr != nil {
+		// Realistically we should never reach this point. CreateOrUpdate will ensure it is valid
+		return parseErr
+	}
+	q.Window = window
+	return nil
 }
 
 func (q *Queue) LoadTags() {

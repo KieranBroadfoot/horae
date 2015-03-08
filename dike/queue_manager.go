@@ -17,28 +17,41 @@ func queueManager(queue types.Queue, toEunomia chan types.EunomiaRequest) {
 
 	queueMaster := false
 
-	preTimer := time.NewTimer(queueTime(queue, "pre"))
-	startTimer := time.NewTimer(queueTime(queue, "start"))
-	endTimer := time.NewTimer(queueTime(queue, "stop"))
+	// Load window of operation
+	err := queue.LoadWindow()
+	if err != nil {
+		log.WithFields(log.Fields{"queue": queue.UUID}).Info("Queue failed to start (invalid window definition)")
+	}
+
+	state := "pre"
+	timer := time.NewTimer(queueTime(queue, "pre"))
 
 	for {
 		select {
-		case <-preTimer.C:
-			// claim master
-			channelToMonitor <- types.EunomiaQueueRequest{Action: types.EunomiaRequestBecomeMaster, QueueUUID: queue.UUID}
-		case <-startTimer.C:
-			// start executing the queue - if we are not master we dont do anything
-			if queueMaster {
-				queue.StartExecution()
-			}
-		case <-endTimer.C:
-			// release queue via eunomia
-			channelToMonitor <- types.EunomiaQueueRequest{Action: types.EunomiaRequestReleaseMaster, QueueUUID: queue.UUID}
+		case <-timer.C:
+			switch state {
+			case "pre":
+				// claim master
+				channelToMonitor <- types.EunomiaQueueRequest{Action: types.EunomiaRequestBecomeMaster, QueueUUID: queue.UUID}
+				timer = time.NewTimer(queueTime(queue, "start"))
+				state = "start"
+			case "start":
+				// start executing the queue - if we are not master we dont do anything
+				if queueMaster {
+					queue.StartExecution()
+				}
+				// in five seconds let's generate the stop timer.  see bug defined in window.go
+				state = "genEnd"
+				timer = time.NewTimer(5 * time.Second)
+			case "genEnd":
+				state = "end"
+				timer = time.NewTimer(queueTime(queue, "stop"))
+			case "end":
+				// release queue via eunomia
+				channelToMonitor <- types.EunomiaQueueRequest{Action: types.EunomiaRequestReleaseMaster, QueueUUID: queue.UUID}
 
-			// stop execution of the queue
-			// if queue is draining and task list now empty we signal deletion of the queue
-			// TODO - think about re-balancing of queue.  should we relinquish control when the window closes?
-			// TODO - IF ShouldDrain is TRUE and no tasks can be found we should close and request final deletion!!!!
+				// TODO - IF ShouldDrain is TRUE and no tasks can be found we should close and request final deletion!!!!
+			}
 		case queueResponse := <-channelFromMonitor:
 			if queueResponse.Action == types.EunomiaResponseBecameQueueMaster {
 				if queueMaster != true {
@@ -64,16 +77,24 @@ func queueManager(queue types.Queue, toEunomia chan types.EunomiaRequest) {
 }
 
 func queueTime(queue types.Queue, action string) (duration time.Duration) {
-	//log.Print("Request for duration: " + action)
-	// returns duration until next activity for the queue
-	// if the Window is nil then pre = now, start = 5 seconds, end = largest int64 value (290 years)
-	// this means a never-ending queue is pinned to a node until restart of the node
+	now := time.Now()
+	start := queue.Window.GetNextStartTime()
 	if action == "pre" {
-		return 0 * time.Second
+		if now.Unix() == start.Unix() {
+			// queue should already be open.  return immediately and claim the queue
+			return 0 * time.Second
+		} else {
+			// return 30 seconds before window opens so can try and claim the queue
+			return (start.Sub(now) - 20*time.Second)
+		}
 	} else if action == "start" {
-		return 5 * time.Second
+		if now.Unix() == start.Unix() {
+			// even though the queue should be running we need the preTimer to fire to claim the queue
+			return 20 * time.Second
+		} else {
+			return start.Sub(now)
+		}
 	} else {
-		// end duration
-		return 10000 * time.Second
+		return queue.Window.GetNextEndTime().Sub(now)
 	}
 }
