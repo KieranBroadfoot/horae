@@ -54,12 +54,16 @@ func startAPIInterface(toCore chan bool, toEunomia chan types.EunomiaRequest, li
 	}
 }
 
-func StartEirene(node types.Node, signalToCore chan types.Node, failureToCore chan bool, toEunomia chan types.EunomiaRequest, fromEunomia chan types.EireneStrategyAction) {
+func StartEirene(node types.Node, staticPort bool, signalToCore chan types.Node, failureToCore chan bool, toEunomia chan types.EunomiaRequest, fromEunomia chan types.EireneStrategyAction) {
 	log.Print("Starting Eirene")
 
 	// initialise a listener with a random port
 	ipaddr, _ := common.FindExternalInterface()
-	listener, err := net.Listen("tcp", ipaddr+":0")
+	port := ":0"
+	if staticPort {
+		port = ":8015"
+	}
+	listener, err := net.Listen("tcp", ipaddr+port)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Fatal("Setting API Address")
 		failureToCore <- true

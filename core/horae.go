@@ -14,6 +14,7 @@ var (
 	clusterName      string
 	cassandraAddress string
 	etcdAddress      string
+	staticPort       bool
 )
 
 func StartServer() {
@@ -36,7 +37,7 @@ func StartServer() {
 	allToEunomiaCh := make(chan types.EunomiaRequest)
 
 	// Start etcd Manager
-	go eirene.StartEirene(node, eireneToCore, coreFailureCh, allToEunomiaCh, eunomiaToEireneCh)
+	go eirene.StartEirene(node, staticPort, eireneToCore, coreFailureCh, allToEunomiaCh, eunomiaToEireneCh)
 
 	for {
 		select {
