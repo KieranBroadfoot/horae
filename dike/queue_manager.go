@@ -49,7 +49,8 @@ func queueManager(queue types.Queue, toEunomia chan types.EunomiaRequest) {
 			case "end":
 				// release queue via eunomia
 				channelToMonitor <- types.EunomiaQueueRequest{Action: types.EunomiaRequestReleaseMaster, QueueUUID: queue.UUID}
-
+				state = "pre"
+				timer = time.NewTimer(queueTime(queue, "pre"))
 				// TODO - IF ShouldDrain is TRUE and no tasks can be found we should close and request final deletion!!!!
 			}
 		case queueResponse := <-channelFromMonitor:
