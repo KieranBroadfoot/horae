@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/kieranbroadfoot/horae/types"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -75,17 +76,27 @@ func createTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 func updateTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
 	// TODO - check for queue changes and fail.
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	task := new(types.Task)
-	err := json.NewDecoder(r.Body).Decode(task)
-	if err != nil {
-		returnError(w, 400, "Badly formed request")
+	vars := mux.Vars(r)
+	task, terr := types.GetTask(vars["uuid"])
+	if terr != nil {
+		returnError(w, 400, "Task not updated: "+terr.Error())
 	} else {
-		terr := task.CreateOrUpdate()
-		if terr != nil {
-			returnError(w, 400, "Task not updated: "+terr.Error())
+		data, ioerr := ioutil.ReadAll(r.Body)
+		if ioerr != nil {
+			returnError(w, 400, "Unable to read incoming json")
 		} else {
-			//toEunomia <- "FOO"
-			returnSuccess(w, "Task updated")
+			err := json.Unmarshal(data, &task)
+			if err != nil {
+				returnError(w, 400, "Badly formed request")
+			} else {
+				terr := task.CreateOrUpdate()
+				if terr != nil {
+					returnError(w, 400, "Task not updated: "+terr.Error())
+				} else {
+					//toEunomia <- "FOO"
+					returnSuccess(w, "Task updated")
+				}
+			}
 		}
 	}
 }

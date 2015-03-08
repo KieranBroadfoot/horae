@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/kieranbroadfoot/horae/types"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -74,17 +75,34 @@ func createQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 // @Router /queue/{uuid} [put]
 func updateQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	queue := new(types.Queue)
-	err := json.NewDecoder(r.Body).Decode(queue)
-	if err != nil {
-		returnError(w, 400, "Badly formed request")
+	vars := mux.Vars(r)
+	uuid := vars["uuid"]
+	if uuid == "11111111-1111-1111-1111-111111111111" {
+		returnError(w, 400, "Cannot update root queue")
 	} else {
-		qerr := queue.CreateOrUpdate()
+		queue, qerr := types.GetQueue(vars["uuid"])
 		if qerr != nil {
 			returnError(w, 400, "Queue not updated: "+qerr.Error())
 		} else {
-			returnSuccess(w, "Queue updated")
-			//toEunomia <- "FOO"
+			//err := json.NewDecoder(r.Body).Decode(queue)
+			data, ioerr := ioutil.ReadAll(r.Body)
+			if ioerr != nil {
+				returnError(w, 400, "Unable to read incoming json")
+			} else {
+				// use Unmarshal rather than Decode so we may update the existing queue type
+				err := json.Unmarshal(data, &queue)
+				if err != nil {
+					returnError(w, 400, "Badly formed request: "+err.Error())
+				} else {
+					qerr := queue.CreateOrUpdate()
+					if qerr != nil {
+						returnError(w, 400, "Queue not updated: "+qerr.Error())
+					} else {
+						returnSuccess(w, "Queue updated")
+						//toEunomia <- "FOO"
+					}
+				}
+			}
 		}
 	}
 }

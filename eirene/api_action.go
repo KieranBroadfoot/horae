@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/kieranbroadfoot/horae/types"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -74,17 +75,27 @@ func createAction(w http.ResponseWriter, r *http.Request, toEunomia chan types.E
 // @Router /action/{uuid} [put]
 func updateAction(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	action := new(types.Action)
-	err := json.NewDecoder(r.Body).Decode(action)
-	if err != nil {
-		returnError(w, 400, "Badly formed request")
+	vars := mux.Vars(r)
+	action, aerr := types.GetTask(vars["uuid"])
+	if aerr != nil {
+		returnError(w, 400, "Action not updated: "+aerr.Error())
 	} else {
-		terr := action.CreateOrUpdate()
-		if terr != nil {
-			returnError(w, 400, "Action not updated: "+terr.Error())
+		data, ioerr := ioutil.ReadAll(r.Body)
+		if ioerr != nil {
+			returnError(w, 400, "Unable to read incoming json")
 		} else {
-			//toEunomia <- "FOO"
-			returnSuccess(w, "Action updated")
+			err := json.Unmarshal(data, &action)
+			if err != nil {
+				returnError(w, 400, "Badly formed request")
+			} else {
+				terr := action.CreateOrUpdate()
+				if terr != nil {
+					returnError(w, 400, "Action not updated: "+terr.Error())
+				} else {
+					//toEunomia <- "FOO"
+					returnSuccess(w, "Action updated")
+				}
+			}
 		}
 	}
 }
