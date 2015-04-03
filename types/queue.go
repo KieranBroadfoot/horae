@@ -85,9 +85,6 @@ func GetQueueByPath(path string) (Queue, error) {
 
 // CRUD
 func (queue *Queue) CreateOrUpdate() error {
-	// TODO - paths must not end in /
-	// TODO - paths should be unique????
-	// TODO - no-one can define a path of '/'
 	// ensure paths are unique for object
 	if queue.UUID.String() == "00000000-0000-0000-0000-000000000000" {
 		// queue was generated from json with an unknown UUID.  Fix up
@@ -100,8 +97,11 @@ func (queue *Queue) CreateOrUpdate() error {
 	if parseErr != nil {
 		return errors.New("Invalid window definition: " + parseErr.Error())
 	}
+	pathErr := queue.CreateOrUpdatePaths()
+	if pathErr != nil {
+		return pathErr
+	}
 	queue.CreateOrUpdateTags()
-	queue.CreateOrUpdatePaths()
 	bind := cqlr.Bind(`insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition) values (?, ?, ?, ?, ?, ?, ?)`, queue)
 	if err := bind.Exec(session); err != nil {
 		return err
@@ -159,10 +159,16 @@ func LoadPathsFromDB(uuid gocql.UUID) []string {
 	return paths
 }
 
-func (q Queue) CreateOrUpdatePaths() {
+func (q Queue) CreateOrUpdatePaths() error {
 	// set paths on queue
 	pathsFromDB := LoadPathsFromDB(q.UUID)
 	for _, path := range q.OurPaths {
+		if path == "/" {
+			return errors.New("Cannot define queue with root path")
+		}
+		if path[len(path)-1:] == "/" {
+			return errors.New("Cannot define path with trailing slash")
+		}
 		if isStringInSlice(path, pathsFromDB) {
 			pathsFromDB = findAndRemoveInSlice(path, pathsFromDB)
 		} else {
@@ -172,6 +178,7 @@ func (q Queue) CreateOrUpdatePaths() {
 	for _, pathToDelete := range pathsFromDB {
 		session.Query(`delete from paths where queue_uuid = ? and path = ?`, q.UUID, pathToDelete).Exec()
 	}
+	return nil
 }
 
 func (q Queue) DeletePaths() {
