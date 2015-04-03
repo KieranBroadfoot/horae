@@ -34,7 +34,7 @@ func (p *parser) run() {
 // DAG
 
 func parseStart(p *parser) stateFn {
-	return switchOnValidStates(p, []itemType{itemTime, itemAnyAlways})
+	return switchOnValidStates(p, []itemType{itemTime, itemAnyAlways, itemNever})
 }
 
 func parseTime(p *parser) stateFn {
@@ -59,6 +59,11 @@ func parseAny(p *parser) stateFn {
 
 func parseAnyAlwaysClarification(p *parser) stateFn {
 	return switchOnValidStates(p, []itemType{itemException, itemEnd})
+}
+
+func parseNever(p *parser) stateFn {
+	p.window.AlwaysOff = true
+	return switchOnValidStates(p, []itemType{itemEnd})
 }
 
 func parseException(p *parser) stateFn {
@@ -225,6 +230,8 @@ func switchOnValidStates(p *parser, validStates []itemType) stateFn {
 			return parseAny
 		case n.typ == itemAnyAlwaysClarification:
 			return parseAnyAlwaysClarification
+		case n.typ == itemNever:
+			return parseNever
 		case n.typ == itemException:
 			return parseException
 		case n.typ == itemOn:

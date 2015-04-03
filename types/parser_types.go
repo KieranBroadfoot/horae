@@ -28,6 +28,7 @@ const (
 	itemRecurrence
 	itemAnyAlways
 	itemAnyAlwaysClarification
+	itemNever
 	itemException
 	itemOn
 	itemTimeZoneParam

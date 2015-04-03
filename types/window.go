@@ -30,6 +30,7 @@ type Window struct {
 	OnDate     string
 	Timezone   string
 	AlwaysOn   bool
+	AlwaysOff  bool
 	Error      string
 }
 
@@ -141,6 +142,12 @@ func (w *Window) generateRecurringWindow() {
 		w.start_ = now
 		w.end_ = time.Date(2500, time.January, 0, 0, 0, 0, 0, time.UTC)
 		return
+	}
+
+	if w.AlwaysOff == true {
+		// a queue which is always off is easy.. set start and end to some far future date
+		w.start_ = time.Date(2500, time.January, 0, 0, 0, 0, 0, time.UTC)
+		w.end_ = time.Date(2501, time.January, 0, 0, 0, 0, 0, time.UTC)
 	}
 
 	if w.AlwaysOn == false && w.OnDate != "" {

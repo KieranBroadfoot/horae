@@ -22,6 +22,7 @@ func init() {
 		"every":     itemRecurrence,
 		"any":       itemAnyAlways,
 		"always":    itemAnyAlways,
+		"never":     itemNever,
 		"time":      itemAnyAlwaysClarification,
 		"except":    itemException,
 		"on":        itemOn,
