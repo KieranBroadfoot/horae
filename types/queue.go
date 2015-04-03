@@ -24,6 +24,7 @@ type Queue struct {
 	OurPaths               []string    `json:"paths,omitempty" description:"Paths assigned to the queue."`
 	Tasks                  []Task      `json:"-"`
 	Window                 Window      `json:"-"`
+	Running                bool        `json:"-"`
 }
 
 // Query
@@ -84,6 +85,9 @@ func GetQueueByPath(path string) (Queue, error) {
 
 // CRUD
 func (queue *Queue) CreateOrUpdate() error {
+	// TODO - paths must not end in /
+	// TODO - paths should be unique????
+	// TODO - no-one can define a path of '/'
 	// ensure paths are unique for object
 	if queue.UUID.String() == "00000000-0000-0000-0000-000000000000" {
 		// queue was generated from json with an unknown UUID.  Fix up
@@ -179,6 +183,7 @@ func (q Queue) DeletePaths() {
 func (q *Queue) LoadTasks() {
 	log.WithFields(log.Fields{"name": q.Name}).Info("Loading tasks on Queue")
 	// TODO - should order tasks by execution time and priority
+	// TODO - kill this function.  no longer necessary to load. Start Execution will load as it goes.
 	if q.Name == "root" {
 		// root never receives tasks
 		q.Tasks = []Task{}
@@ -194,15 +199,54 @@ func (q *Queue) LoadTasks() {
 	}
 }
 
-// TODO - fix all of this below
 
-func (q Queue) Contained() bool {
-	// return true or false if queue is currently contained
-	return true
+
+func (q *Queue) IsRunning() bool {
+	return q.Running
+}
+
+func (q Queue) MatchesPath(path string) bool {
+	for _, p := range q.OurPaths {
+		if p == path {
+			return true
+		}
+	}
+	return false
 }
 
 func (q *Queue) StartExecution() {
 	log.WithFields(log.Fields{"name": q.Name}).Info("Starting execution on Queue")
+	q.Running = true
+
+	//select * from tasks where queue_uuid = 11111111-1111-1111-1111-111111111111 and when > dateof(now()) and when < '2015-03-15 17:00';
+
+	/*
+		TODO - plan for queue execution
+		Step 1: Update status flag on queue to "RUNNING"
+		when this function starts we need to determine behaviour.
+		if async (which means we execute when the timestamp fires)
+			read tasks from DB for the next 10 minutes
+			register each with the queue monitor for updates
+			results will be ordered by cassandra so we can simply execute each in order
+			for each task fire a timer to execute when "when" occurs
+			when ten minutes is up request more, add to the queue monitor and execute
+
+		if sync (which means we execute in order and wait for completion)
+			read first task
+			register interest with queue monitor
+			execute
+			wait for update from queue monitor for completion
+			repeat
+
+		When we receive a NEW message from the queue monitor determine what to do:
+		async - ignore if when is not within the current timeslice (10min slot)
+		sync - ignore, we are only executing one item at a time
+
+		When we receive an UPDATE message from the queue monitor:
+		async - if the item is in this timeslice, update local store (and reset timers perhaps). if its being executed.. too late ignore
+		sync - ignore because we're already executing it
+
+	*/
 
 	//if q.QueueType == QueueSync {
 	// execute task at top of the list
@@ -220,6 +264,7 @@ func (q *Queue) StartExecution() {
 	// every minute do the following: for all tasks executing in the next minute start timers to execute
 }
 
-func (q *Queue) StopExecution() {
-	log.WithFields(log.Fields{"name": q.Name}).Info("Stopping execution on Queue")
+func (q *Queue) StopExecution(reason string) {
+	log.WithFields(log.Fields{"name": q.Name, "reason": reason}).Info("Stopping execution on Queue")
+	q.Running = false
 }

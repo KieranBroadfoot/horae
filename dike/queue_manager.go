@@ -4,16 +4,17 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/kieranbroadfoot/horae/types"
 	"time"
+	"path"
 )
 
-func queueManager(queue types.Queue, toEunomia chan types.EunomiaRequest) {
+func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 	log.WithFields(log.Fields{"queue": queue.UUID}).Info("Queue manager started")
 
 	channelToMonitor := make(chan types.EunomiaQueueRequest)
 	channelFromMonitor := make(chan types.EunomiaQueueResponse)
 
 	// start a queue monitor in eunomia.
-	toEunomia <- types.EunomiaRequest{Action: types.EunomiaActionMonitor, ChannelFromQueueManager: channelToMonitor, ChannelToQueueManager: channelFromMonitor, QueueUUID: queue.UUID}
+	toEunomia <- types.EunomiaRequest{Action: types.EunomiaQueueMonitor, ChannelFromQueueManager: channelToMonitor, ChannelToQueueManager: channelFromMonitor, QueueUUID: queue.UUID}
 
 	queueMaster := false
 
@@ -37,17 +38,60 @@ func queueManager(queue types.Queue, toEunomia chan types.EunomiaRequest) {
 				state = "start"
 			case "start":
 				// start executing the queue - if we are not master we dont do anything
+				resetStart := false
 				if queueMaster {
-					queue.StartExecution()
+					willRun := false
+					for _, p := range queue.OurPaths {
+						// each path of the queue.
+						willRun = shouldRun(path.Dir(p))
+					}
+					if willRun {
+						queue.StartExecution()
+					} else {
+						// what to do if the queue is not currently contained but should be running
+						resetStart = true
+					}
 				}
-				// in five seconds let's generate the stop timer.  see bug defined in window.go
-				state = "genEnd"
-				timer = time.NewTimer(5 * time.Second)
-			case "genEnd":
-				state = "end"
-				timer = time.NewTimer(queueTime(queue, "stop"))
+				if resetStart {
+					// let's try and restart the queue in 60 seconds. maybe one of the containing queues will
+					// start operations.  We'll give up if we are about to hit the end time for this window
+					endTime := queueTime(queue, "stop")
+					if endTime < 60 * time.Second {
+						// about to reach the end of our window.  jump to end state
+						state = "end"
+						timer = time.NewTimer(endTime)
+					} else {
+						timer = time.NewTimer(60 * time.Second)
+					}
+				} else {
+					state = "running"
+					timer = time.NewTimer(60 * time.Second)
+				}
+			case "running":
+				continueRunning := true
+				for _, p := range queue.OurPaths {
+					// check if queue is *still* contained
+					continueRunning = shouldRun(path.Dir(p))
+				}
+				if !continueRunning {
+					queue.StopExecution("Lost Containment")
+					// if we are no longer contained.  set state back to start.  we may be available again before we reach our end state
+					state = "start"
+					timer = time.NewTimer(60 * time.Second)
+				} else {
+					// continue running and check again for containment in 60 seconds
+					endTime := queueTime(queue, "stop")
+					if endTime < 60 * time.Second {
+						state = "end"
+						timer = time.NewTimer(queueTime(queue, "stop"))
+					} else {
+						state = "running"
+						timer = time.NewTimer(60 * time.Second)
+					}
+				}
 			case "end":
 				// release queue via eunomia
+				queue.StopExecution("Window Closed")
 				channelToMonitor <- types.EunomiaQueueRequest{Action: types.EunomiaRequestReleaseMaster, QueueUUID: queue.UUID}
 				state = "pre"
 				timer = time.NewTimer(queueTime(queue, "pre"))
@@ -64,7 +108,7 @@ func queueManager(queue types.Queue, toEunomia chan types.EunomiaRequest) {
 				if queueMaster != false {
 					log.WithFields(log.Fields{"queue": queue.UUID, "status": "slave"}).Info("Changing queue status")
 					queueMaster = false
-					queue.StopExecution()
+					queue.StopExecution("Lost Ownership")
 				}
 			} else if queueResponse.Action == types.EunomiaResponseActionCreate {
 				// TODO - implement. type is queue or task, uuid contains the object which has updated
@@ -77,7 +121,7 @@ func queueManager(queue types.Queue, toEunomia chan types.EunomiaRequest) {
 	}
 }
 
-func queueTime(queue types.Queue, action string) (duration time.Duration) {
+func queueTime(queue *types.Queue, action string) (duration time.Duration) {
 	now := time.Now()
 	start := queue.Window.GetNextStartTime()
 	if action == "pre" {
