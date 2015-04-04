@@ -58,7 +58,7 @@ func createTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 				if err := json.NewEncoder(w).Encode(task); err != nil {
 					panic(err)
 				}
-				//toEunomia <- "FOO"
+				toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.UUID.String(), Value: types.EunomiaActionCreate, TTL: 20}
 			}
 		}
 	}
@@ -93,8 +93,8 @@ func updateTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 				if terr != nil {
 					returnError(w, 400, "Task not updated: "+terr.Error())
 				} else {
-					//toEunomia <- "FOO"
 					returnSuccess(w, "Task updated")
+					toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.UUID.String(), Value: types.EunomiaActionUpdate, TTL: 20}
 				}
 			}
 		}
@@ -120,8 +120,8 @@ func deleteTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 		if terr != nil {
 			returnError(w, 400, "Task not deleted: "+terr.Error())
 		} else {
-			//toEunomia <- "FOO"
 			returnSuccess(w, "Task deleted")
+			toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.UUID.String(), Value: types.EunomiaActionDelete, TTL: 20}
 		}
 	}
 }
@@ -145,8 +145,8 @@ func completeTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.E
 		if terr != nil {
 			returnError(w, 400, "Task not completed: "+terr.Error())
 		} else {
-			//toEunomia <- "FOO"
 			returnSuccess(w, "Task completed")
+			toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.UUID.String(), Value: types.EunomiaActionComplete, TTL: 20}
 		}
 	}
 }

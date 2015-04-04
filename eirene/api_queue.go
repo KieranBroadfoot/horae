@@ -58,7 +58,7 @@ func createQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 				if err := json.NewEncoder(w).Encode(queue); err != nil {
 					panic(err)
 				}
-				//toEunomia <- "FOO"
+				toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/queues/"+queue.UUID.String(), Value: types.EunomiaActionCreate, TTL: 20}
 			}
 		}
 	}
@@ -99,7 +99,7 @@ func updateQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 						returnError(w, 400, "Queue not updated: "+qerr.Error())
 					} else {
 						returnSuccess(w, "Queue updated")
-						//toEunomia <- "FOO"
+						toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/queues/"+queue.UUID.String(), Value: types.EunomiaActionUpdate, TTL: 20}
 					}
 				}
 			}
@@ -131,5 +131,5 @@ func deleteQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 			returnSuccess(w, "Queue deleted")
 		}
 	}
-	//toEunomia <- "FOO"
+	toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/queues/"+queue.UUID.String(), Value: types.EunomiaActionDelete, TTL: 20}
 }

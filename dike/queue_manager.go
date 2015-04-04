@@ -11,7 +11,7 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 	log.WithFields(log.Fields{"queue": queue.UUID}).Info("Queue manager started")
 
 	channelToMonitor := make(chan types.EunomiaQueueRequest)
-	channelFromMonitor := make(chan types.EunomiaQueueResponse)
+	channelFromMonitor := make(chan types.EunomiaResponse)
 
 	// start a queue monitor in eunomia.
 	toEunomia <- types.EunomiaRequest{Action: types.EunomiaQueueMonitor, ChannelFromQueueManager: channelToMonitor, ChannelToQueueManager: channelFromMonitor, QueueUUID: queue.UUID}
@@ -110,12 +110,36 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 					queueMaster = false
 					queue.StopExecution("Lost Ownership")
 				}
-			} else if queueResponse.Action == types.EunomiaResponseActionCreate {
-				// TODO - implement. type is queue or task, uuid contains the object which has updated
-			} else if queueResponse.Action == types.EunomiaResponseActionUpdate {
-				// TODO - implement
-			} else if queueResponse.Action == types.EunomiaResponseActionDelete {
-				// TODO - implement
+			} else if queueResponse.Action == types.EunomiaActionCreate {
+				if queueResponse.Type == types.EunomiaTask {
+					// TODO - implement
+				}
+			} else if queueResponse.Action == types.EunomiaActionUpdate {
+				if queueResponse.Type == types.EunomiaQueue {
+					// reload queue from DB
+					q, err := types.GetQueue(queueResponse.UUID.String())
+					if err == nil {
+						queue = &q
+					}
+					// stop execution (we don't know precisely what changed so the best bet is to reset)
+					queue.StopExecution("Queue Updated")
+					// reset timer to pre state
+					state = "pre"
+					timer = time.NewTimer(queueTime(queue, "pre"))
+				} else if queueResponse.Type == types.EunomiaTask {
+					// TODO - implement
+				}
+			} else if queueResponse.Action == types.EunomiaActionDelete {
+				if queueResponse.Type == types.EunomiaQueue {
+					log.WithFields(log.Fields{"queue": queueResponse.UUID.String()}).Info("Queue manager shutting down")
+					return
+				} else if queueResponse.Type == types.EunomiaTask {
+					// TODO - implement
+				}
+			} else if queueResponse.Action == types.EunomiaActionComplete {
+				if queueResponse.Type == types.EunomiaTask {
+					// TODO - implement
+				}
 			}
 		}
 	}

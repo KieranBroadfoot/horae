@@ -11,6 +11,7 @@ const (
 )
 
 var etcdAddress string
+var clusterPath string
 
 /*
 
@@ -42,25 +43,27 @@ func getEtcdClient() *etcd.Client {
 	return etcd.NewClient([]string{"http://" + etcdAddress})
 }
 
+func getClusterPath() string {
+	return clusterPath
+}
+
 func setupEtcd(node types.Node) {
+	clusterPath = rootPath+node.Cluster
 	for _, value := range [4]string{"/nodes", "/queues", "/updates/queues", "/updates/tasks"} {
 		client := getEtcdClient()
 		// check for root dir for this cluster
-		_, err := client.Get(rootPath+node.Cluster+value, false, false)
+		_, err := client.Get(getClusterPath()+value, false, false)
 		if err != nil {
 			// Creating the default root path for this cluster; accepting that this may fail as another node is creating simultaneously
-			log.WithFields(log.Fields{"path": rootPath + node.Cluster + value}).Info("Creating node for cluster")
-			client.CreateDir(rootPath+node.Cluster+value, 0)
+			log.WithFields(log.Fields{"path": getClusterPath() + value}).Info("Creating node for cluster")
+			client.CreateDir(getClusterPath()+value, 0)
 		}
 	}
 }
 
 func StartEunomia(node types.Node, failure chan bool, toEirene chan types.EireneStrategyAction, requestsFromAll chan types.EunomiaRequest) {
-	// TODO - what should happen if etcd isnt available?  send signal back to the core to bail.....
 	log.Print("Starting Eunomia")
-
 	setupEtcd(node)
-
 	go electMaster(node, toEirene)
 
 	workerCh := make(chan types.EunomiaRequest)
@@ -71,11 +74,13 @@ func StartEunomia(node types.Node, failure chan bool, toEirene chan types.Eirene
 	for {
 		select {
 		case request := <-requestsFromAll:
-			if request.Action == types.EunomiaActionMonitor {
-				// case: receive message from Dike to set up a queue monitor
+			if request.Action == types.EunomiaQueuesMonitor {
+				// case: receive message from Dike to set up a monitor for newly created/deleted queues
+				go monitorQueues(request)
+			} else if request.Action == types.EunomiaQueueMonitor {
+				// case: receive message from a queue manager to set up a queue monitor
 				go monitorQueue(node, request, requestsFromAll)
-
-			} else if request.Action == types.EunomiaActionUpdate || request.Action == types.EunomiaActionDelete {
+			} else if request.Action == types.EunomiaStoreUpdate || request.Action == types.EunomiaStoreDelete {
 				// Do nothing more than pass it on to one of our workers
 				// TODO - is this a bottleneck?  or can we ensure other actions in this case are quick to exec?
 				workerCh <- request

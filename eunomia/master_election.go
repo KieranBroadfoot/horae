@@ -22,7 +22,7 @@ func electMaster(node types.Node, toEirene chan types.EireneStrategyAction) {
 
 	// regularly update the node in the server list
 	updateNodeCh := make(chan bool) // signal shutdown
-	go updateNode(updateNodeCh, rootPath+node.Cluster+"/nodes", node, nodeTTL, updateRate)
+	go updateNode(updateNodeCh, getClusterPath()+"/nodes", node, nodeTTL, updateRate)
 
 	// now wait a couple of seconds before we start the election check
 	time.Sleep(2 * time.Second)
@@ -32,7 +32,7 @@ func electMaster(node types.Node, toEirene chan types.EireneStrategyAction) {
 		// determine which node is currently master.  if its ourselves
 		// then configure ourselves as master.  If not change state
 		// to slave
-		isMaster, newMasterAddr, newMasterPort := findMaster(client, rootPath+node.Cluster+"/nodes", node)
+		isMaster, newMasterAddr, newMasterPort := findMaster(client, getClusterPath()+"/nodes", node)
 		if isMaster {
 			toEirene <- types.EireneStrategyAction{"master", "", ""}
 		} else {
