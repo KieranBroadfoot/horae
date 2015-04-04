@@ -102,7 +102,6 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 				if queueMaster != true {
 					log.WithFields(log.Fields{"queue": queue.UUID, "status": "master"}).Info("Changing queue status")
 					queueMaster = true
-					queue.LoadTasks()
 				}
 			} else if queueResponse.Action == types.EunomiaResponseBecameQueueSlave {
 				if queueMaster != false {

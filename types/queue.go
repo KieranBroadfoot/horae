@@ -10,6 +10,8 @@ import (
 const (
 	QueueSync  = "sync"
 	QueueAsync = "async"
+	QueueActive = "Active"
+	QueueDeleted = "Deleted"
 )
 
 type Queue struct {
@@ -25,11 +27,12 @@ type Queue struct {
 	Tasks                  []Task      `json:"-"`
 	Window                 Window      `json:"-"`
 	Running                bool        `json:"-"`
+	Status                 string      `json:"-"`
 }
 
 // Query
 func GetQueues() []Queue {
-	query := session.Query("select * from queues")
+	query := session.Query("select * from queues where status = ? allow filtering", QueueActive)
 	bind := cqlr.BindQuery(query)
 	var queue Queue
 	queues := []Queue{}
@@ -74,7 +77,7 @@ func GetQueueByPath(path string) (Queue, error) {
 	if err := session.Query(`select queue_uuid from paths where path = ? limit 1 allow filtering`, path).Scan(&id); err != nil {
 		return Queue{}, errors.New("No queue found")
 	}
-	query := session.Query("SELECT * FROM queues where queue_uuid = ?", id)
+	query := session.Query("select * from queues where queue_uuid = ?", id)
 	bind := cqlr.BindQuery(query)
 	var queue Queue
 	bind.Scan(&queue)
@@ -102,7 +105,8 @@ func (queue *Queue) CreateOrUpdate() error {
 		return pathErr
 	}
 	queue.CreateOrUpdateTags()
-	bind := cqlr.Bind(`insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition) values (?, ?, ?, ?, ?, ?, ?)`, queue)
+	queue.Status = QueueActive
+	bind := cqlr.Bind(`insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (?, ?, ?, ?, ?, ?, ?, ?)`, queue)
 	if err := bind.Exec(session); err != nil {
 		return err
 	} else {
@@ -113,7 +117,12 @@ func (queue *Queue) CreateOrUpdate() error {
 func (queue Queue) Delete() error {
 	queue.DeletePaths()
 	queue.DeleteTags()
-	bind := cqlr.Bind(`delete from queues where queue_uuid = ?`, queue)
+	if err := session.Query(`delete from queues where queue_uuid = ? and status = ?`, queue.UUID, QueueActive).Exec(); err != nil {
+		return err
+	}
+	// add the queue back into the DB with a Deleted status.
+	queue.Status = QueueDeleted
+	bind := cqlr.Bind(`insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (?, ?, ?, ?, ?, ?, ?, ?)`, queue)
 	if err := bind.Exec(session); err != nil {
 		return err
 	} else {
@@ -187,27 +196,6 @@ func (q Queue) DeletePaths() {
 }
 
 // Queue Execution
-func (q *Queue) LoadTasks() {
-	log.WithFields(log.Fields{"name": q.Name}).Info("Loading tasks on Queue")
-	// TODO - should order tasks by execution time and priority
-	// TODO - kill this function.  no longer necessary to load. Start Execution will load as it goes.
-	if q.Name == "root" {
-		// root never receives tasks
-		q.Tasks = []Task{}
-	} else {
-		uuid := gocql.UUID{}
-		iteration := session.Query("select task_uuid from tasks where queue_uuid = ?", q.UUID).Iter()
-		for iteration.Scan(&uuid) {
-			task, err := GetTaskWithQueue(q.UUID, uuid)
-			if err == nil {
-				q.Tasks = append(q.Tasks, task)
-			}
-		}
-	}
-}
-
-
-
 func (q *Queue) IsRunning() bool {
 	return q.Running
 }
@@ -226,6 +214,35 @@ func (q *Queue) StartExecution() {
 	q.Running = true
 
 	//select * from tasks where queue_uuid = 11111111-1111-1111-1111-111111111111 and when > dateof(now()) and when < '2015-03-15 17:00';
+
+	/*	uuid := gocql.UUID{}
+		iteration := session.Query("select task_uuid from tasks where queue_uuid = ?", q.UUID).Iter()
+		for iteration.Scan(&uuid) {
+			task, err := GetTaskWithQueue(q.UUID, uuid)
+			if err == nil {
+				q.Tasks = append(q.Tasks, task)
+			}
+		}
+
+		for _, task := range q.Tasks {
+			task.Execute(false)
+		}*/
+
+	// query types:
+	// get task by uuid
+	// get tasks by queue and ordered by when
+	// get tasks by queue and ordered by priority
+	// get tasks by queue
+
+	if q.QueueType == QueueSync {
+		// sync mode
+		// execute each task in order.  wait for completion and then execute the next
+
+	} else if q.QueueType == QueueAsync {
+		// async mode
+		// execute each task independently up to a max queue depth.
+
+	}
 
 	/*
 		TODO - plan for queue execution
@@ -254,21 +271,6 @@ func (q *Queue) StartExecution() {
 		sync - ignore because we're already executing it
 
 	*/
-
-	//if q.QueueType == QueueSync {
-	// execute task at top of the list
-	// wait for completion - seen via etcd update
-	// then start the next
-
-	//} else {
-	// async queue.  find first task
-	for _, task := range q.Tasks {
-		task.Execute(false)
-	}
-
-	// if queue is async
-
-	// every minute do the following: for all tasks executing in the next minute start timers to execute
 }
 
 func (q *Queue) StopExecution(reason string) {

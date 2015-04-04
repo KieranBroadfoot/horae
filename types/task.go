@@ -19,6 +19,7 @@ const (
 	TaskComplete        = "Complete"
 	TaskFailed          = "Failure"
 	TaskPartiallyFailed = "Partially Failed"
+	TaskDeleted         = "Deleted"
 )
 
 type Task struct {
@@ -53,8 +54,7 @@ func GetTasksByTag(tag string) []Task {
 	tasks := []Task{}
 	iteration := session.Query("select object_uuid from tags where type = 'task' and tag = ? allow filtering", tag).Iter()
 	for iteration.Scan(&id) {
-		log.Print(id)
-		q := session.Query("select * from tasks where task_uuid = ? allow filtering", id)
+		q := session.Query("select * from tasks where task_uuid = ?", id)
 		b := cqlr.BindQuery(q)
 		b.Scan(&task)
 		task.LoadTags()
@@ -67,24 +67,26 @@ func GetTasksByQueue(queue string) []Task {
 	var id gocql.UUID
 	var task Task
 	tasks := []Task{}
-	iteration := session.Query("select task_uuid from tasks where queue_uuid = ?", queue).Iter()
-	for iteration.Scan(&id) {
-		q := session.Query("select * from tasks where task_uuid = ? allow filtering", id)
-		b := cqlr.BindQuery(q)
-		b.Scan(&task)
-		task.LoadTags()
-		tasks = append(tasks, task)
+	q, err := GetQueue(queue)
+	if err == nil {
+		table := "async_tasks"
+		if q.QueueType == QueueSync {
+			table = "sync_tasks"
+		}
+		iteration := session.Query("select task_uuid from ? where queue_uuid = ? and status in ('Pending', 'Running', 'Complete', 'Failure', 'Partially Failed', 'Deleted')", table, queue).Iter()
+		for iteration.Scan(&id) {
+			q := session.Query("select * from tasks where task_uuid = ?", id)
+			b := cqlr.BindQuery(q)
+			b.Scan(&task)
+			task.LoadTags()
+			tasks = append(tasks, task)
+		}
 	}
 	return tasks
 }
 
-func GetTaskWithQueue(queueUUID gocql.UUID, taskUUID gocql.UUID) (Task, error) {
-	query := session.Query("select * from tasks where queue_uuid = ? and task_uuid = ?", queueUUID, taskUUID)
-	return bindActionsToTask(query)
-}
-
 func GetTask(taskUUID string) (Task, error) {
-	query := session.Query("select * from tasks where task_uuid = ? allow filtering", taskUUID)
+	query := session.Query("select * from tasks where task_uuid = ?", taskUUID)
 	return bindActionsToTask(query)
 }
 
@@ -119,27 +121,64 @@ func (task *Task) CreateOrUpdate() error {
 		uuid, _ := gocql.ParseUUID("11111111-1111-1111-1111-111111111111")
 		task.Queue = &uuid
 	}
-	task.CreateOrUpdateTags()
-	bind := cqlr.Bind(`insert into tasks (queue_uuid, task_uuid, execution_action, name, priority, promise_action, status, when) values (?, ?, ?, ?, ?, ?, ?, ?)`, task)
-	if err := bind.Exec(session); err != nil {
-		return err
-	} else {
-		return nil
+	if task.Status == "" {
+		// New tasks need their status set...
+		task.Status = TaskPending
 	}
+	q, err := GetQueue(task.Queue.String())
+	if err == nil {
+		if task.When.IsZero() && q.QueueType == QueueAsync {
+			return errors.New("No timestamp set for async queue")
+		}
+		if task.When.IsZero() {
+			// fix up the timestamp before embedding into the DB.  Go defaults to an epoch of 1754, Cassandra only supports 1970 onwards
+			task.When = time.Date(1975, time.January, 0, 0, 0, 0, 0, time.UTC)
+		}
+		task.CreateOrUpdateTags()
+		bind := cqlr.Bind(`insert into tasks (task_uuid, queue_uuid, execution_action, name, priority, promise_action, status, when) values (?, ?, ?, ?, ?, ?, ?, ?)`, task)
+		if err := bind.Exec(session); err != nil {
+			return err
+		}
+		return task.createOrUpdateInSubTables()
+	} else {
+		return errors.New("Unknown queue")
+	}
+
+}
+
+func (task Task) createOrUpdateInSubTables() error {
+	q, err := GetQueue(task.Queue.String())
+	if err == nil {
+		dQuery := session.Query(`delete from async_tasks where queue_uuid = ? and status = ? and when = ? and task_uuid = ?`, q.UUID, task.Status, task.When, task.UUID)
+		iBind := cqlr.Bind(`insert into async_tasks (queue_uuid, status, when, task_uuid) values (?, ?, ?, ?)`, task)
+		if q.QueueType == QueueSync {
+			dQuery = session.Query(`delete from sync_tasks where queue_uuid = ? and status = ? and priority = ? and task_uuid = ?`, q.UUID, task.Status, task.Priority, task.UUID)
+			iBind = cqlr.Bind(`insert into sync_tasks (queue_uuid, status, priority, task_uuid) values (?, ?, ?, ?)`, task)
+		} else {
+
+		}
+		if err := dQuery.Exec(); err != nil {
+			return err
+		}
+		if err := iBind.Exec(session); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (task Task) Delete() error {
 	task.DeleteTags()
-	bind := cqlr.Bind(`delete from tasks where queue_uuid = ? and task_uuid = ?`, task)
-	if err := bind.Exec(session); err != nil {
+	task.Status = TaskDeleted
+	if err := session.Query(`update tasks set status = ? where task_uuid = ?`, task.Status, task.UUID).Exec(); err != nil {
 		return err
-	} else {
-		return nil
 	}
+	return task.createOrUpdateInSubTables()
 }
 
 func (task Task) SetStatus(status string) error {
-	if err := session.Query(`update tasks set status = ? where queue_uuid = ? and task_uuid = ? and when = ?`, status, task.Queue, task.UUID, task.When).Exec(); err != nil {
+	task.Status = status
+	if err := session.Query(`update tasks set status = ? where queue_uuid = ? and task_uuid = ? and when = ?`, task.Status, task.Queue, task.UUID, task.When).Exec(); err != nil {
 		return err
 	}
 	return nil

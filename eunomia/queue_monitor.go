@@ -87,7 +87,6 @@ func restartWatchers(client *etcd.Client, queue gocql.UUID, queueWatch chan *etc
 }
 
 func startWatchers(client *etcd.Client, queue gocql.UUID, queueWatch chan *etcd.Response, queueStop chan bool, taskWatch chan *etcd.Response, taskStop chan bool) {
-	log.Print("MONITORING: "+getClusterPath()+"/updates/queues/"+queue.String())
 	go client.Watch(getClusterPath()+"/updates/queues/"+queue.String(), 0, false, queueWatch, queueStop)
 	go client.Watch(getClusterPath()+"/updates/tasks/", 0, true, taskWatch, taskStop)
 }
