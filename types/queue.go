@@ -227,6 +227,16 @@ func (q Queue) CountOfTasks() uint64 {
 	return 0
 }
 
+func (q Queue) CheckBackpressure() {
+	if q.CountOfTasks() > q.BackpressureDefinition {
+		// the depth of the queue exceeds our expectations.
+		task, err := GetTask(q.BackPressureAction.String())
+		if err == nil {
+			task.Execute(true)
+		}
+	}
+}
+
 func (q Queue) ReceivedCompletionForTask(task_uuid string) {
 	// in a sync model we only execute a promise (if defined) when a completion message is received.
 	task, err := GetTask(task_uuid)
@@ -245,7 +255,6 @@ func (q *Queue) StartOrContinueExecution(starting bool) {
 
 	//select * from tasks where queue_uuid = 11111111-1111-1111-1111-111111111111 and when > dateof(now()) and when < '2015-03-15 17:00';
 
-	// select count(*) from sync_tasks where queue_uuid = cfd66ccc-d857-4e90-b1e5-df98a3d40cd6 and status = 'Pending' limit 1000000 ;
 	if q.QueueType == QueueSync {
 		// sync mode
 		// execute each task in order.  wait for completion and then execute the next
