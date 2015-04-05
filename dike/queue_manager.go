@@ -133,7 +133,7 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 					if queueMaster == true {
 						queue.CheckBackpressure()
 					}
-					// TODO - implement
+					queue.UpdatedTask(types.EunomiaActionCreate, queueResponse.UUID.String())
 				}
 			} else if queueResponse.Action == types.EunomiaActionUpdate {
 				if queueResponse.Type == types.EunomiaQueue {
@@ -148,10 +148,10 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 					state = "pre"
 					timer = time.NewTimer(queueTime(queue, "pre"))
 				} else if queueResponse.Type == types.EunomiaTask {
-					// TODO - implement
 					if queueMaster == true {
 						queue.CheckBackpressure()
 					}
+					queue.UpdatedTask(types.EunomiaActionUpdate, queueResponse.UUID.String())
 				}
 			} else if queueResponse.Action == types.EunomiaActionDelete {
 				if queueResponse.Type == types.EunomiaQueue && queue.ShouldDrain == false {
@@ -162,7 +162,7 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 					if queueMaster == true {
 						queue.CheckBackpressure()
 					}
-					// TODO - implement
+					queue.UpdatedTask(types.EunomiaActionDelete, queueResponse.UUID.String())
 				}
 			} else if queueResponse.Action == types.EunomiaActionComplete {
 				if queueResponse.Type == types.EunomiaTask && queue.QueueType == types.QueueSync {

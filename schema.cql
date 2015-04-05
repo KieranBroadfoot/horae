@@ -85,7 +85,7 @@ insert into actions (action_uuid, operation, uri, payload) values (575d6070-a3f0
 insert into actions (action_uuid, operation, uri, payload) values (28941e26-a479-11e4-89d3-123b93f75cba, 'GET', 'http://www.l1fe.co.uk', '');
 insert into actions (action_uuid, operation, uri, payload) values (28942088-a479-11e4-89d3-123b93f75cba, 'GET', 'http://www.verdacc.io', '');
 
-insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (2f8ed604-daba-11e4-b9d6-1681e6b88ec1, 'test async queue', 'async', '1am - 2am every day', false, 575d6070-a3f0-11e4-89d3-123b93f75cba, 10, 'Deleted');
+insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (2f8ed604-daba-11e4-b9d6-1681e6b88ec1, 'test async queue', 'async', 'always', false, 575d6070-a3f0-11e4-89d3-123b93f75cba, 10, 'Active');
 insert into paths (queue_uuid, path) values(2f8ed604-daba-11e4-b9d6-1681e6b88ec1, '/datacenter/dc2/west/rack1');
 insert into tags (object_uuid, type, tag) values (2f8ed604-daba-11e4-b9d6-1681e6b88ec1, 'queue', 'dc2_west_rack1');
 

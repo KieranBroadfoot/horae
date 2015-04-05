@@ -17,19 +17,21 @@ const (
 )
 
 type Queue struct {
-	UUID                   gocql.UUID  `cql:"queue_uuid" json:"uuid,required" description:"The unique identifier of the queue"`
-	Name                   string      `cql:"name" json:"name,omitempty" description:"The unique name of the queue"`
-	QueueType              string      `cql:"queue_type" json:"queueType,omitempty" description:"The type of queue: sync or async"`
-	WindowOfOperation      string      `cql:"window_of_operation" json:"windowOfOperation,omitempty" description:"The window of operation for the queue if defined as sync"`
-	ShouldDrain            bool        `cql:"should_drain" json:"shouldDrain,omitempty" description:"The expected behaviour of the queue when it is deleted. If true the queue will drain (and no longer accept new requests) before it is deleted.  Defaults to true"`
-	BackPressureAction     *gocql.UUID `cql:"backpressure_action" json:"backpressureAction,omitempty" description:"The unique identifier of an action to be called in the event that the backpressure definition is breached"`
-	BackpressureDefinition uint64      `cql:"backpressure_definition" json:"backpressureDefinition,omitempty" description:"For queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called."`
-	OurTags                []string    `json:"tags,omitempty" description:"Tags assigned to the queue."`
-	OurPaths               []string    `json:"paths,omitempty" description:"Paths assigned to the queue."`
-	Tasks                  []Task      `json:"-"`
-	Window                 Window      `json:"-"`
-	Running                bool        `json:"-"`
-	Status                 string      `json:"-"`
+	UUID                   gocql.UUID             `cql:"queue_uuid" json:"uuid,required" description:"The unique identifier of the queue"`
+	Name                   string                 `cql:"name" json:"name,omitempty" description:"The unique name of the queue"`
+	QueueType              string                 `cql:"queue_type" json:"queueType,omitempty" description:"The type of queue: sync or async"`
+	WindowOfOperation      string                 `cql:"window_of_operation" json:"windowOfOperation,omitempty" description:"The window of operation for the queue if defined as sync"`
+	ShouldDrain            bool                   `cql:"should_drain" json:"shouldDrain,omitempty" description:"The expected behaviour of the queue when it is deleted. If true the queue will drain (and no longer accept new requests) before it is deleted.  Defaults to true"`
+	BackPressureAction     *gocql.UUID            `cql:"backpressure_action" json:"backpressureAction,omitempty" description:"The unique identifier of an action to be called in the event that the backpressure definition is breached"`
+	BackpressureDefinition uint64                 `cql:"backpressure_definition" json:"backpressureDefinition,omitempty" description:"For queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called."`
+	OurTags                []string               `json:"tags,omitempty" description:"Tags assigned to the queue."`
+	OurPaths               []string               `json:"paths,omitempty" description:"Paths assigned to the queue."`
+	Tasks                  []Task                 `json:"-"`
+	Window                 Window                 `json:"-"`
+	Running                bool                   `json:"-"`
+	Status                 string                 `json:"-"`
+	asyncTimerMap          map[string]*time.Timer `json:"-"`
+	asyncTimeWindow        time.Time              `json:"-"`
 }
 
 // Query
@@ -245,6 +247,52 @@ func (q Queue) ReceivedCompletionForTask(task_uuid string) {
 	}
 }
 
+func (q *Queue) UpdatedTask(action string, task_uuid string) {
+	// received task update from queue manager, ignore if we are a sync queue; we're only ever executing one
+	// task at a time, and if this change is for an active task it's simply too late to make changes
+	if q.QueueType == QueueAsync {
+		if action == EunomiaActionCreate {
+			t, err := GetTask(task_uuid)
+			if err == nil {
+				if !q.asyncTimeWindow.IsZero() && t.When.Before(q.asyncTimeWindow) {
+					// task is within scope of the current time slice
+					q.addToTimerMap(task_uuid)
+				}
+			}
+		} else if action == EunomiaActionUpdate {
+			// re-read from DB and set up the timer. there is the potential for an issue here:
+			// the task may be executing but the key isn't remove from the map until this has
+			// completed.  the chances of this are slim but greater than 0
+			q.removeFromTimerMap(task_uuid)
+			q.addToTimerMap(task_uuid)
+		} else if action == EunomiaActionDelete {
+			// if currently in our asyncTimerMap, stop timer and remove
+			_, ok := q.asyncTimerMap[task_uuid]
+			if ok {
+				// this task is known to us
+				q.removeFromTimerMap(task_uuid)
+			}
+		}
+	}
+}
+
+func (q *Queue) addToTimerMap(task string) {
+	t, err := GetTask(task)
+	if err == nil {
+		// execute task at specified time.
+		q.asyncTimerMap[t.UUID.String()] = time.AfterFunc(t.When.Sub(time.Now()), func() {
+			t.Execute(false)
+			delete(q.asyncTimerMap, t.UUID.String())
+		})
+	}
+}
+
+func (q *Queue) removeFromTimerMap(task string) {
+	timer := q.asyncTimerMap[task]
+	timer.Stop()
+	delete(q.asyncTimerMap, task)
+}
+
 func (q *Queue) StartOrContinueExecution(starting bool) {
 	if starting {
 		log.WithFields(log.Fields{"name": q.Name, "UUID": q.UUID.String()}).Info("Starting execution on Queue")
@@ -252,9 +300,6 @@ func (q *Queue) StartOrContinueExecution(starting bool) {
 		log.WithFields(log.Fields{"name": q.Name, "UUID": q.UUID.String()}).Info("Continuing execution on Queue")
 	}
 	q.Running = true
-
-	//select * from tasks where queue_uuid = 11111111-1111-1111-1111-111111111111 and when > dateof(now()) and when < '2015-03-15 17:00';
-
 	if q.QueueType == QueueSync {
 		// sync mode
 		// execute each task in order.  wait for completion and then execute the next
@@ -279,32 +324,36 @@ func (q *Queue) StartOrContinueExecution(starting bool) {
 	} else if q.QueueType == QueueAsync {
 		// async mode
 		// execute each task independently based on timestamp
-
+		// reset the timer map
+		q.asyncTimerMap = make(map[string]*time.Timer)
+		for {
+			timeForQuery := time.Now().Add(5 * time.Minute)
+			if timeForQuery.After(q.Window.GetNextEndTime()) {
+				timeForQuery = q.Window.GetNextEndTime()
+			}
+			q.asyncTimeWindow = timeForQuery
+			var id gocql.UUID
+			iteration := session.Query("select task_uuid from async_tasks where queue_uuid = ? and status = ? and when > ? and when < ?", q.UUID, TaskPending, time.Now(), timeForQuery).Iter()
+			for iteration.Scan(&id) {
+				_, ok := q.asyncTimerMap[id.String()]
+				if !ok {
+					// we don't currently know about this task.
+					q.addToTimerMap(id.String())
+				}
+			}
+			// every 4 minutes, check for new tasks
+			time.Sleep(4 * time.Minute)
+		}
 	}
-
-	/*
-		TODO - plan for queue execution
-		Step 1: Update status flag on queue to "RUNNING"
-		when this function starts we need to determine behaviour.
-		if async (which means we execute when the timestamp fires)
-			read tasks from DB for the next 10 minutes
-			register each with the queue monitor for updates
-			results will be ordered by cassandra so we can simply execute each in order
-			for each task fire a timer to execute when "when" occurs
-			when ten minutes is up request more, add to the queue monitor and execute
-
-		When we receive a NEW message from the queue monitor determine what to do:
-		async - ignore if when is not within the current timeslice (10min slot)
-		sync - ignore, we are only executing one item at a time
-
-		When we receive an UPDATE message from the queue monitor:
-		async - if the item is in this timeslice, update local store (and reset timers perhaps). if its being executed.. too late ignore
-		sync - ignore because we're already executing it
-
-	*/
 }
 
 func (q *Queue) StopExecution(reason string) {
 	log.WithFields(log.Fields{"name": q.Name, "reason": reason}).Info("Stopping execution on Queue")
 	q.Running = false
+	if q.QueueType == QueueAsync {
+		// stop all the existing tasks in flight
+		for k := range q.asyncTimerMap {
+			q.removeFromTimerMap(k)
+		}
+	}
 }
