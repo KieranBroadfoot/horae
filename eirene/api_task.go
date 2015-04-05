@@ -74,7 +74,6 @@ func createTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 // @Resource /tasks
 // @Router /task/{uuid} [put]
 func updateTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - check for queue changes and fail.
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	vars := mux.Vars(r)
 	task, terr := types.GetTask(vars["uuid"])

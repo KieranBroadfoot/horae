@@ -89,17 +89,21 @@ func updateQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 			if ioerr != nil {
 				returnError(w, 400, "Unable to read incoming json")
 			} else {
-				// use Unmarshal rather than Decode so we may update the existing queue type
-				err := json.Unmarshal(data, &queue)
-				if err != nil {
-					returnError(w, 400, "Badly formed request: "+err.Error())
+				if queue.Status != types.QueueActive {
+					returnError(w, 400, "Queue not updated: Not Active")
 				} else {
-					qerr := queue.CreateOrUpdate()
-					if qerr != nil {
-						returnError(w, 400, "Queue not updated: "+qerr.Error())
+					// use Unmarshal rather than Decode so we may update the existing queue type
+					err := json.Unmarshal(data, &queue)
+					if err != nil {
+						returnError(w, 400, "Badly formed request: "+err.Error())
 					} else {
-						returnSuccess(w, "Queue updated")
-						toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/queues/"+queue.UUID.String(), Value: types.EunomiaActionUpdate, TTL: 20}
+						qerr := queue.CreateOrUpdate()
+						if qerr != nil {
+							returnError(w, 400, "Queue not updated: "+qerr.Error())
+						} else {
+							returnSuccess(w, "Queue updated")
+							toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/queues/"+queue.UUID.String(), Value: types.EunomiaActionUpdate, TTL: 20}
+						}
 					}
 				}
 			}
@@ -117,7 +121,6 @@ func updateQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eu
 // @Resource /queues
 // @Router /queue/{uuid} [delete]
 func deleteQueue(w http.ResponseWriter, r *http.Request, toEunomia chan types.EunomiaRequest) {
-	// TODO - handle shouldDrain case
 	vars := mux.Vars(r)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	queue, qerr := types.GetQueue(vars["uuid"])

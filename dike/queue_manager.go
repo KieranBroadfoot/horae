@@ -106,7 +106,13 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 				channelToMonitor <- types.EunomiaQueueRequest{Action: types.EunomiaRequestReleaseMaster, QueueUUID: queue.UUID}
 				state = "pre"
 				timer = time.NewTimer(queueTime(queue, "pre"))
-				// TODO - IF ShouldDrain is TRUE and no tasks can be found we should close and request final deletion!!!!
+				if queue.CountOfTasks() == 0 && queue.Status == types.QueueDeleting {
+					// no more tasks available in the queue, and queue in a deleting state.  set state to delete.
+					queue.Status = types.QueueDeleted
+					queue.CreateOrUpdate()
+					log.WithFields(log.Fields{"queue": queue.UUID.String(), "reason": "queue drained"}).Info("Queue manager shutting down")
+					return
+				}
 			}
 		case queueResponse := <-channelFromMonitor:
 			if queueResponse.Action == types.EunomiaResponseBecameQueueMaster {
@@ -142,8 +148,9 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 					// TODO - implement
 				}
 			} else if queueResponse.Action == types.EunomiaActionDelete {
-				if queueResponse.Type == types.EunomiaQueue {
-					log.WithFields(log.Fields{"queue": queueResponse.UUID.String()}).Info("Queue manager shutting down")
+				if queueResponse.Type == types.EunomiaQueue && queue.ShouldDrain == false {
+					// received a deletion notice and we do not need to drain the queue.
+					log.WithFields(log.Fields{"queue": queueResponse.UUID.String(), "reason": "immediate delete"}).Info("Queue manager shutting down")
 					return
 				} else if queueResponse.Type == types.EunomiaTask {
 					// TODO - implement

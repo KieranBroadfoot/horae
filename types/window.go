@@ -113,7 +113,7 @@ func (w *Window) returnTime(returntype string) time.Time {
 				return time.Now()
 			}
 		} else {
-			// TODO - bug: if we find ourselves in the exception window we cannot easily determine the next end timestamp, return zero and expect the queueManager to call us again when it starts
+			// See bug definition at the top of this file for details.
 			now = now.Add(time.Second)
 			if now.After(w.start_) && now.Before(w.end_) {
 				// inside the exception window.  we cannot know the next end timestamp, return zero

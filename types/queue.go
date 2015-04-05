@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	QueueSync    = "sync"
-	QueueAsync   = "async"
-	QueueActive  = "Active"
-	QueueDeleted = "Deleted"
+	QueueSync     = "sync"
+	QueueAsync    = "async"
+	QueueActive   = "Active"
+	QueueDeleted  = "Deleted"
+	QueueDeleting = "Deleting"
 )
 
 type Queue struct {
@@ -33,7 +34,7 @@ type Queue struct {
 
 // Query
 func GetQueues() []Queue {
-	query := session.Query("select * from queues where status = ? allow filtering", QueueActive)
+	query := session.Query("select * from queues where status in (?, ?) allow filtering", QueueActive, QueueDeleting)
 	bind := cqlr.BindQuery(query)
 	var queue Queue
 	queues := []Queue{}
@@ -121,8 +122,12 @@ func (queue Queue) Delete() error {
 	if err := session.Query(`delete from queues where queue_uuid = ? and status = ?`, queue.UUID, QueueActive).Exec(); err != nil {
 		return err
 	}
-	// add the queue back into the DB with a Deleted status.
-	queue.Status = QueueDeleted
+	// add the queue back into the DB with a Deleted/Deleting status.
+	if queue.ShouldDrain == true {
+		queue.Status = QueueDeleting
+	} else {
+		queue.Status = QueueDeleted
+	}
 	bind := cqlr.Bind(`insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (?, ?, ?, ?, ?, ?, ?, ?)`, queue)
 	if err := bind.Exec(session); err != nil {
 		return err
@@ -208,6 +213,18 @@ func (q Queue) MatchesPath(path string) bool {
 		}
 	}
 	return false
+}
+
+func (q Queue) CountOfTasks() uint64 {
+	var count uint64
+	query := "select count(*) from async_tasks where queue_uuid = ? and status = 'Pending' limit 1000000"
+	if q.QueueType == QueueSync {
+		query = "select count(*) from sync_tasks where queue_uuid = ? and status = 'Pending' limit 1000000"
+	}
+	if err := session.Query(query, q.UUID).Scan(&count); err == nil {
+		return count
+	}
+	return 0
 }
 
 func (q Queue) ReceivedCompletionForTask(task_uuid string) {

@@ -128,6 +128,9 @@ func (task *Task) CreateOrUpdate() error {
 	}
 	q, err := GetQueue(task.Queue.String())
 	if err == nil {
+		if q.Status == QueueDeleted {
+			return errors.New("Queue has been deleted (no tasks can be created or updated)")
+		}
 		if task.When.IsZero() && q.QueueType == QueueAsync {
 			return errors.New("No timestamp set for async queue")
 		}
