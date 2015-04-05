@@ -34,6 +34,7 @@ type Task struct {
 	OurTags         []string    `json:"tags,omitempty" description:"Tags assigned to the task."`
 	Promise         Action      `json:"-"`
 	Execution       Action      `json:"-"`
+	previousStatus  string		`json:"-"`
 }
 
 func GetTasks() []Task {
@@ -148,19 +149,17 @@ func (task *Task) CreateOrUpdate() error {
 
 func (task Task) createOrUpdateInSubTables() error {
 	q, err := GetQueue(task.Queue.String())
-	if err == nil {
-		dQuery := session.Query(`delete from async_tasks where queue_uuid = ? and status = ? and when = ? and task_uuid = ?`, q.UUID, task.Status, task.When, task.UUID)
-		iBind := cqlr.Bind(`insert into async_tasks (queue_uuid, status, when, task_uuid) values (?, ?, ?, ?)`, task)
+	if err == nil && task.Status != task.previousStatus {
+		dQuery := session.Query(`delete from async_tasks where queue_uuid = ? and status = ? and when = ? and task_uuid = ?`, task.Queue, task.previousStatus, task.When, task.UUID)
+		iQuery := session.Query(`insert into async_tasks (queue_uuid, status, when, task_uuid) values (?, ?, ?, ?)`, task.Queue, task.Status, task.When, task.UUID)
 		if q.QueueType == QueueSync {
-			dQuery = session.Query(`delete from sync_tasks where queue_uuid = ? and status = ? and priority = ? and task_uuid = ?`, q.UUID, task.Status, task.Priority, task.UUID)
-			iBind = cqlr.Bind(`insert into sync_tasks (queue_uuid, status, priority, task_uuid) values (?, ?, ?, ?)`, task)
-		} else {
-
+			dQuery = session.Query(`delete from sync_tasks where queue_uuid = ? and status = ? and priority = ? and task_uuid = ?`, task.Queue, task.previousStatus, task.Priority, task.UUID)
+			iQuery = session.Query(`insert into sync_tasks (queue_uuid, status, priority, task_uuid) values (?, ?, ?, ?)`, task.Queue, task.Status, task.Priority, task.UUID)
 		}
-		if err := dQuery.Exec(); err != nil {
+		if err := iQuery.Exec(); err != nil {
 			return err
 		}
-		if err := iBind.Exec(session); err != nil {
+		if err := dQuery.Exec(); err != nil {
 			return err
 		}
 	}
@@ -178,10 +177,7 @@ func (task Task) Delete() error {
 
 func (task Task) SetStatus(status string) error {
 	task.Status = status
-	if err := session.Query(`update tasks set status = ? where queue_uuid = ? and task_uuid = ? and when = ?`, task.Status, task.Queue, task.UUID, task.When).Exec(); err != nil {
-		return err
-	}
-	return nil
+	return task.CreateOrUpdate()
 }
 
 func (t *Task) LoadTags() {
@@ -196,30 +192,44 @@ func (t Task) DeleteTags() {
 	DeleteTagsForObject(t.UUID)
 }
 
-func (t Task) Execute(sync bool) {
-	log.WithFields(log.Fields{"task": t.UUID}).Info("Executing Task")
-	successes := 0
-	count := 0
+func (t *Task) Execute(sync bool) bool {
+	log.WithFields(log.Fields{"task": t.UUID}).Info("Executing Task Action")
+	success := false
 	if t.ExecutionAction != nil && t.ExecutionAction.String() != "00000000-0000-0000-0000-000000000000" {
-		count++
-		if t.Execution.ExecuteAction(sync) {
-			successes++
+		t.previousStatus = t.Status
+		success = t.Execution.Execute()
+		if !success {
+			t.Status = TaskFailed
+		} else {
+			if sync {
+				t.Status = TaskRunning
+			} else {
+				t.Status = TaskComplete
+			}
 		}
+		t.CreateOrUpdate()
 	}
-	// only execute promise at this point if the sync type is async, e.g. we are not waiting on completion message
-	// TODO - how to execute promise when completion message is returned?
-	if t.PromiseAction != nil && t.PromiseAction.String() != "00000000-0000-0000-0000-000000000000" && sync == false {
-		count++
-		if t.Promise.ExecuteAction(sync) {
-			successes++
-		}
+	if !sync {
+		t.ExecutePromise()
 	}
-	if successes == 0 {
-		t.Status = TaskFailed
-	} else if count != successes {
-		t.Status = TaskPartiallyFailed
+	if t.Status == TaskFailed {
+		return false
 	} else {
-		t.Status = TaskComplete
+		return true
 	}
-	t.CreateOrUpdate()
+}
+
+func (t *Task) ExecutePromise() {
+	success := false
+	if t.PromiseAction != nil && t.PromiseAction.String() != "00000000-0000-0000-0000-000000000000" {
+		t.previousStatus = t.Status
+		log.WithFields(log.Fields{"task": t.UUID}).Info("Executing Task Promise")
+		success = t.Promise.Execute()
+		if t.Status == TaskFailed && success {
+			t.Status = TaskPartiallyFailed
+		} else if t.Status == TaskComplete && !success {
+			t.Status = TaskPartiallyFailed
+		}
+		t.CreateOrUpdate()
+	}
 }

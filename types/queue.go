@@ -5,12 +5,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gocql/gocql"
 	"github.com/relops/cqlr"
+	"time"
 )
 
 const (
-	QueueSync  = "sync"
-	QueueAsync = "async"
-	QueueActive = "Active"
+	QueueSync    = "sync"
+	QueueAsync   = "async"
+	QueueActive  = "Active"
 	QueueDeleted = "Deleted"
 )
 
@@ -21,7 +22,7 @@ type Queue struct {
 	WindowOfOperation      string      `cql:"window_of_operation" json:"windowOfOperation,omitempty" description:"The window of operation for the queue if defined as sync"`
 	ShouldDrain            bool        `cql:"should_drain" json:"shouldDrain,omitempty" description:"The expected behaviour of the queue when it is deleted. If true the queue will drain (and no longer accept new requests) before it is deleted.  Defaults to true"`
 	BackPressureAction     *gocql.UUID `cql:"backpressure_action" json:"backpressureAction,omitempty" description:"The unique identifier of an action to be called in the event that the backpressure definition is breached"`
-	BackpressureDefinition string      `cql:"backpressure_definition" json:"backpressureDefinition,omitempty" description:"For synchronous queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called."`
+	BackpressureDefinition uint64      `cql:"backpressure_definition" json:"backpressureDefinition,omitempty" description:"For queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called."`
 	OurTags                []string    `json:"tags,omitempty" description:"Tags assigned to the queue."`
 	OurPaths               []string    `json:"paths,omitempty" description:"Paths assigned to the queue."`
 	Tasks                  []Task      `json:"-"`
@@ -209,38 +210,49 @@ func (q Queue) MatchesPath(path string) bool {
 	return false
 }
 
-func (q *Queue) StartExecution() {
-	log.WithFields(log.Fields{"name": q.Name}).Info("Starting execution on Queue")
+func (q Queue) ReceivedCompletionForTask(task_uuid string) {
+	// in a sync model we only execute a promise (if defined) when a completion message is received.
+	task, err := GetTask(task_uuid)
+	if err == nil {
+		task.ExecutePromise()
+	}
+}
+
+func (q *Queue) StartOrContinueExecution(starting bool) {
+	if starting {
+		log.WithFields(log.Fields{"name": q.Name, "UUID": q.UUID.String()}).Info("Starting execution on Queue")
+	} else {
+		log.WithFields(log.Fields{"name": q.Name, "UUID": q.UUID.String()}).Info("Continuing execution on Queue")
+	}
 	q.Running = true
 
 	//select * from tasks where queue_uuid = 11111111-1111-1111-1111-111111111111 and when > dateof(now()) and when < '2015-03-15 17:00';
 
-	/*	uuid := gocql.UUID{}
-		iteration := session.Query("select task_uuid from tasks where queue_uuid = ?", q.UUID).Iter()
-		for iteration.Scan(&uuid) {
-			task, err := GetTaskWithQueue(q.UUID, uuid)
-			if err == nil {
-				q.Tasks = append(q.Tasks, task)
-			}
-		}
-
-		for _, task := range q.Tasks {
-			task.Execute(false)
-		}*/
-
-	// query types:
-	// get task by uuid
-	// get tasks by queue and ordered by when
-	// get tasks by queue and ordered by priority
-	// get tasks by queue
-
+	// select count(*) from sync_tasks where queue_uuid = cfd66ccc-d857-4e90-b1e5-df98a3d40cd6 and status = 'Pending' limit 1000000 ;
 	if q.QueueType == QueueSync {
 		// sync mode
 		// execute each task in order.  wait for completion and then execute the next
-
+		for {
+			var id gocql.UUID
+			if err := session.Query(`select task_uuid from sync_tasks where queue_uuid = ? and status = ? limit 1;`, q.UUID, TaskPending).Scan(&id); err == nil {
+				// found a valid task in the queue.  execute and return.  we'll rely on the queue manager to start us up again when the completion message is received
+				task, err := GetTask(id.String())
+				if err == nil {
+					// found a matching task. now execute and immediately return
+					if !task.Execute(true) {
+						// the action failed.  which means we wont ever receive a completion message
+						task.ExecutePromise()
+						continue
+					}
+					return
+				}
+			}
+			// we didnt find a task for this queue in scope.  so wait, and try again.
+			time.Sleep(15 * time.Second)
+		}
 	} else if q.QueueType == QueueAsync {
 		// async mode
-		// execute each task independently up to a max queue depth.
+		// execute each task independently based on timestamp
 
 	}
 
@@ -254,13 +266,6 @@ func (q *Queue) StartExecution() {
 			results will be ordered by cassandra so we can simply execute each in order
 			for each task fire a timer to execute when "when" occurs
 			when ten minutes is up request more, add to the queue monitor and execute
-
-		if sync (which means we execute in order and wait for completion)
-			read first task
-			register interest with queue monitor
-			execute
-			wait for update from queue monitor for completion
-			repeat
 
 		When we receive a NEW message from the queue monitor determine what to do:
 		async - ignore if when is not within the current timeslice (10min slot)

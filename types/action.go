@@ -94,7 +94,7 @@ func (a Action) DeleteTags() {
 	DeleteTagsForObject(a.UUID)
 }
 
-func (action *Action) ExecuteAction(sync bool) bool {
+func (action *Action) Execute() bool {
 	start := time.Now()
 	log.WithFields(log.Fields{"action": action.UUID, "URI": action.URI, "verb": action.Operation}).Info("Executing Action")
 	response, error := action.makeRequest()
@@ -104,19 +104,13 @@ func (action *Action) ExecuteAction(sync bool) bool {
 		action.Failure = error.Error()
 	} else {
 		if response.StatusCode >= 200 && response.StatusCode < 300 {
-			if sync {
-				// set status to Running if successful and Queue is "sync" type. Waiting for completion message
-				action.Status = TaskPending
-			} else {
-				// set status to Complete if successful and Queue is "async" type
-				action.Status = TaskComplete
-			}
+			action.Status = TaskComplete
 		} else {
 			action.Status = TaskFailed
 		}
 	}
 	action.CreateOrUpdate()
-	log.WithFields(log.Fields{"task": action.UUID, "status": action.Status, "time": time.Since(start)}).Info("Finished Task Execution")
+	log.WithFields(log.Fields{"action": action.UUID, "status": action.Status, "time": time.Since(start)}).Info("Finished Action Execution")
 	if action.Status == TaskComplete {
 		return true
 	} else {

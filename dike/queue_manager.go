@@ -7,6 +7,11 @@ import (
 	"path"
 )
 
+const (
+	StartingExecution    = true
+	ContinuingExecution   = false
+)
+
 func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 	log.WithFields(log.Fields{"queue": queue.UUID}).Info("Queue manager started")
 
@@ -41,12 +46,18 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 				resetStart := false
 				if queueMaster {
 					willRun := false
-					for _, p := range queue.OurPaths {
-						// each path of the queue.
-						willRun = shouldRun(path.Dir(p))
+					if len(queue.OurPaths) == 0 {
+						// if the queue has no defined paths then check against the root queue only
+						// this is equivalent to always returning true but we may allow changes to the root queue in the future
+						willRun = shouldRun("/")
+					} else {
+						for _, p := range queue.OurPaths {
+							// each path of the queue.
+							willRun = shouldRun(path.Dir(p))
+						}
 					}
 					if willRun {
-						queue.StartExecution()
+						go queue.StartOrContinueExecution(StartingExecution)
 					} else {
 						// what to do if the queue is not currently contained but should be running
 						resetStart = true
@@ -102,6 +113,8 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 				if queueMaster != true {
 					log.WithFields(log.Fields{"queue": queue.UUID, "status": "master"}).Info("Changing queue status")
 					queueMaster = true
+					state = "start"
+					timer = time.NewTimer(queueTime(queue, "start"))
 				}
 			} else if queueResponse.Action == types.EunomiaResponseBecameQueueSlave {
 				if queueMaster != false {
@@ -136,8 +149,15 @@ func queueManager(queue *types.Queue, toEunomia chan types.EunomiaRequest) {
 					// TODO - implement
 				}
 			} else if queueResponse.Action == types.EunomiaActionComplete {
-				if queueResponse.Type == types.EunomiaTask {
-					// TODO - implement
+				if queueResponse.Type == types.EunomiaTask && queue.QueueType == types.QueueSync {
+					// if we've received a completion message and the queue is a sync type.  two things need to
+					// happen.  execute any associated promises for the task.
+					// kick the execution off again to get the next task started
+					queue.ReceivedCompletionForTask(queueResponse.UUID.String())
+					if queue.IsRunning() {
+						// only continue if the queue is still open for business
+						go queue.StartOrContinueExecution(ContinuingExecution)
+					}
 				}
 			}
 		}

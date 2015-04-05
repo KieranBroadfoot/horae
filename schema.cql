@@ -12,7 +12,7 @@ create table queues (
     window_of_operation varchar,
     should_drain boolean,
     backpressure_action uuid,
-    backpressure_definition varchar,
+    backpressure_definition bigint,
     primary key (queue_uuid, status)
 );
 
@@ -85,13 +85,13 @@ insert into actions (action_uuid, operation, uri, payload) values (575d6070-a3f0
 insert into actions (action_uuid, operation, uri, payload) values (28941e26-a479-11e4-89d3-123b93f75cba, 'GET', 'http://www.l1fe.co.uk', '');
 insert into actions (action_uuid, operation, uri, payload) values (28942088-a479-11e4-89d3-123b93f75cba, 'GET', 'http://www.verdacc.io', '');
 
-insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'test async queue', 'async', '1am - 2am every day', false, 575d6070-a3f0-11e4-89d3-123b93f75cba, '', 'Deleted');
-insert into paths (queue_uuid, path) values(cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, '/datacenter/dc2/west/rack1');
-insert into tags (object_uuid, type, tag) values (cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'queue', 'dc2_west_rack1');
+insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (2f8ed604-daba-11e4-b9d6-1681e6b88ec1, 'test async queue', 'async', '1am - 2am every day', false, 575d6070-a3f0-11e4-89d3-123b93f75cba, 10, 'Deleted');
+insert into paths (queue_uuid, path) values(2f8ed604-daba-11e4-b9d6-1681e6b88ec1, '/datacenter/dc2/west/rack1');
+insert into tags (object_uuid, type, tag) values (2f8ed604-daba-11e4-b9d6-1681e6b88ec1, 'queue', 'dc2_west_rack1');
 
-insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (2f8ed604-daba-11e4-b9d6-1681e6b88ec1, 'test sync queue', 'sync', 'always', false, 575d6070-a3f0-11e4-89d3-123b93f75cba, '', 'Active');
-insert into paths (queue_uuid, path) values(2f8ed604-daba-11e4-b9d6-1681e6b88ec1, '/datacenter/dc1/east/rack42');
-insert into tags (object_uuid, type, tag) values (2f8ed604-daba-11e4-b9d6-1681e6b88ec1, 'queue', 'dc2_east_rack42');
+insert into queues (queue_uuid, name, queue_type, window_of_operation, should_drain, backpressure_action, backpressure_definition, status) values (cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'test sync queue', 'sync', 'always', false, 575d6070-a3f0-11e4-89d3-123b93f75cba, 20, 'Active');
+insert into paths (queue_uuid, path) values(cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, '/datacenter/dc1/east/rack42');
+insert into tags (object_uuid, type, tag) values (cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'queue', 'dc2_east_rack42');
 
 insert into tasks (task_uuid, queue_uuid, when, status, execution_action) values (d9c4b820-13b2-43a2-aac8-26ee4a55bb14, 2f8ed604-daba-11e4-b9d6-1681e6b88ec1, '2015-03-15 15:50', 'Pending', 575d6070-a3f0-11e4-89d3-123b93f75cba) ;
 insert into tasks (task_uuid, queue_uuid, when, status, execution_action) values (eed6116e-54d1-40fc-9513-18d35f2018d1, 2f8ed604-daba-11e4-b9d6-1681e6b88ec1, '2015-03-15 15:30', 'Pending', 28941e26-a479-11e4-89d3-123b93f75cba) ;
@@ -110,12 +110,12 @@ insert into async_tasks (queue_uuid, task_uuid, when, status) values (2f8ed604-d
 insert into async_tasks (queue_uuid, task_uuid, when, status) values (2f8ed604-daba-11e4-b9d6-1681e6b88ec1, 67e1d924-b512-4d5e-8212-20be51ac08db, '2015-03-15 17:32', 'Pending') ;
 
 insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (9adfe006-aef3-4d91-bf70-709057624d73, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 0, 575d6070-a3f0-11e4-89d3-123b93f75cba) ;
-insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (bdb1806b-94e4-43fd-94c5-1ba7aa0e42c7, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 0, 28941e26-a479-11e4-89d3-123b93f75cba) ;
-insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (e41274a7-6491-45f7-80d3-685118972378, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 50, 575d6070-a3f0-11e4-89d3-123b93f75cba) ;
+insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (bdb1806b-94e4-43fd-94c5-1ba7aa0e42c7, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 10, 28941e26-a479-11e4-89d3-123b93f75cba) ;
+insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (e41274a7-6491-45f7-80d3-685118972378, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 20, 575d6070-a3f0-11e4-89d3-123b93f75cba) ;
 insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (7c1933e4-898c-4b6e-b175-4c55714384d9, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 0, 28942088-a479-11e4-89d3-123b93f75cba) ;
 insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (ab358ba8-4816-4b4f-b70e-d687d6ec4145, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 0, 575d6070-a3f0-11e4-89d3-123b93f75cba) ;
-insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (69a2a26d-bdfa-4fe2-bd67-43185fefc15c, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 1000, 28942088-a479-11e4-89d3-123b93f75cba) ;
-insert into tasks (task_uuid, queue_uuid, status, priority, execution_action) values (ab69938a-2a86-416e-bff7-47dab014b732, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 0, 28941e26-a479-11e4-89d3-123b93f75cba) ;
+insert into tasks (task_uuid, queue_uuid, status, priority, execution_action, promise_action) values (69a2a26d-bdfa-4fe2-bd67-43185fefc15c, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 50, 28942088-a479-11e4-89d3-123b93f75cba, 28942088-a479-11e4-89d3-123b93f75cba) ;
+insert into tasks (task_uuid, queue_uuid, status, priority, execution_action, promise_action) values (ab69938a-2a86-416e-bff7-47dab014b732, cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 'Pending', 100, 575d6070-a3f0-11e4-89d3-123b93f75cba, 28942088-a479-11e4-89d3-123b93f75cba) ;
 
 insert into sync_tasks (queue_uuid, task_uuid, priority, status) values (cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, 9adfe006-aef3-4d91-bf70-709057624d73, 0, 'Pending') ;
 insert into sync_tasks (queue_uuid, task_uuid, priority, status) values (cfd66ccc-d857-4e90-b1e5-df98a3d40cd6, bdb1806b-94e4-43fd-94c5-1ba7aa0e42c7, 10, 'Pending') ;
