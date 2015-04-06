@@ -58,7 +58,7 @@ func createTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 				if err := json.NewEncoder(w).Encode(task); err != nil {
 					panic(err)
 				}
-				toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.UUID.String(), Value: types.EunomiaActionCreate, TTL: 20}
+				toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.Queue.String()+"/"+task.UUID.String(), Value: types.EunomiaActionCreate, TTL: 20}
 			}
 		}
 	}
@@ -93,7 +93,7 @@ func updateTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 					returnError(w, 400, "Task not updated: "+terr.Error())
 				} else {
 					returnSuccess(w, "Task updated")
-					toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.UUID.String(), Value: types.EunomiaActionUpdate, TTL: 20}
+					toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.Queue.String()+"/"+task.UUID.String(), Value: types.EunomiaActionUpdate, TTL: 20}
 				}
 			}
 		}
@@ -120,7 +120,7 @@ func deleteTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.Eun
 			returnError(w, 400, "Task not deleted: "+terr.Error())
 		} else {
 			returnSuccess(w, "Task deleted")
-			toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.UUID.String(), Value: types.EunomiaActionDelete, TTL: 20}
+			toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.Queue.String()+"/"+task.UUID.String(), Value: types.EunomiaActionDelete, TTL: 20}
 		}
 	}
 }
@@ -145,7 +145,7 @@ func completeTask(w http.ResponseWriter, r *http.Request, toEunomia chan types.E
 			returnError(w, 400, "Task not completed: "+terr.Error())
 		} else {
 			returnSuccess(w, "Task completed")
-			toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.UUID.String(), Value: types.EunomiaActionComplete, TTL: 20}
+			toEunomia <- types.EunomiaRequest{Action: types.EunomiaStoreUpdate, Key: "updates/tasks/"+task.Queue.String()+"/"+task.UUID.String(), Value: types.EunomiaActionComplete, TTL: 20}
 		}
 	}
 }

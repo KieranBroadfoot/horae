@@ -10,7 +10,6 @@ import (
 
 const (
 	TaskGet             = "GET"
-	TaskPut             = "PUT"
 	TaskPost            = "POST"
 	TaskHead            = "HEAD"
 	TaskDelete          = "DELETE"
@@ -179,6 +178,7 @@ func (task Task) Delete() error {
 }
 
 func (task Task) SetStatus(status string) error {
+	task.previousStatus = task.Status
 	task.Status = status
 	return task.CreateOrUpdate()
 }
@@ -200,17 +200,19 @@ func (t *Task) Execute(sync bool) bool {
 	success := false
 	if t.ExecutionAction != nil && t.ExecutionAction.String() != "00000000-0000-0000-0000-000000000000" {
 		t.previousStatus = t.Status
-		success = t.Execution.Execute()
-		if !success {
-			t.Status = TaskFailed
-		} else {
-			if sync {
-				t.Status = TaskRunning
+		if sync {
+			t.Status = TaskRunning
+			t.CreateOrUpdate()
+		}
+		success = t.Execution.Execute(t)
+		if !sync {
+			if !success {
+				t.Status = TaskFailed
 			} else {
 				t.Status = TaskComplete
 			}
+			t.CreateOrUpdate()
 		}
-		t.CreateOrUpdate()
 	}
 	if !sync {
 		t.ExecutePromise()
@@ -227,7 +229,7 @@ func (t *Task) ExecutePromise() {
 	if t.PromiseAction != nil && t.PromiseAction.String() != "00000000-0000-0000-0000-000000000000" {
 		t.previousStatus = t.Status
 		log.WithFields(log.Fields{"task": t.UUID}).Info("Executing Task Promise")
-		success = t.Promise.Execute()
+		success = t.Promise.Execute(t)
 		if t.Status == TaskFailed && success {
 			t.Status = TaskPartiallyFailed
 		} else if t.Status == TaskComplete && !success {

@@ -91,7 +91,7 @@ func StartEirene(node types.Node, staticPort bool, signalToCore chan types.Node,
 				if strategyUpdate.Action == "master" {
 					if !middleware.isMaster() {
 						log.WithFields(log.Fields{"state": "master"}).Info("Changing API Routing Strategy")
-						middleware.setAvailableAsMaster()
+						middleware.setAvailableAsMaster(node.Address, node.Port)
 					}
 				} else if strategyUpdate.Action == "slave" {
 					currentAddr, currentPort := middleware.currentMaster()
@@ -102,6 +102,10 @@ func StartEirene(node types.Node, staticPort bool, signalToCore chan types.Node,
 				} else if strategyUpdate.Action == "unavailable" {
 					log.WithFields(log.Fields{"state": "unavailable"}).Info("Changing API Routing Strategy")
 					middleware.setUnavailable()
+				}
+				if node.MasterURI != middleware.currentMasterAsURI() {
+					node.MasterURI = middleware.currentMasterAsURI()
+					signalToCore <- node
 				}
 			}
 		}

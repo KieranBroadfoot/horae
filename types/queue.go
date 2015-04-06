@@ -232,9 +232,11 @@ func (q Queue) CountOfTasks() uint64 {
 func (q Queue) CheckBackpressure() {
 	if q.CountOfTasks() > q.BackpressureDefinition {
 		// the depth of the queue exceeds our expectations.
-		task, err := GetTask(q.BackPressureAction.String())
-		if err == nil {
-			task.Execute(true)
+		if q.BackPressureAction.String() == "00000000-0000-0000-0000-000000000000" {
+			task, err := GetTask(q.BackPressureAction.String())
+			if err == nil {
+				task.Execute(true)
+			}
 		}
 	}
 }

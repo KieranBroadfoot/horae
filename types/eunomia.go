@@ -15,10 +15,10 @@ const (
 	EunomiaRequestReleaseMaster      = "state_release"
 	EunomiaResponseBecameQueueMaster = "became_queue_master"
 	EunomiaResponseBecameQueueSlave  = "became_queue_slave"
-	EunomiaActionCreate              = "action_create"
-	EunomiaActionUpdate              = "action_update"
-	EunomiaActionDelete              = "action_delete"
-	EunomiaActionComplete            = "action_complete"
+	EunomiaActionCreate              = "eunomia_action_create"
+	EunomiaActionUpdate              = "eunomia_action_update"
+	EunomiaActionDelete              = "eunomia_action_delete"
+	EunomiaActionComplete            = "eunomia_action_complete"
 )
 
 type EunomiaRequest struct {

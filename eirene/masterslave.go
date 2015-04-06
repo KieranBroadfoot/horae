@@ -14,7 +14,7 @@ type MasterSlave struct {
 }
 
 func NewMasterSlave() *MasterSlave {
-	return &MasterSlave{false, false, "http://horae.co", "80"}
+	return &MasterSlave{false, false, "horae.co", "80"}
 }
 
 func (m *MasterSlave) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
@@ -29,9 +29,11 @@ func (m *MasterSlave) ServeHTTP(rw http.ResponseWriter, r *http.Request, next ht
 	}
 }
 
-func (m *MasterSlave) setAvailableAsMaster() {
+func (m *MasterSlave) setAvailableAsMaster(addr string, port string) {
 	m.available = true
 	m.master = true
+	m.masterAddr = addr
+	m.masterPort = port
 }
 
 func (m *MasterSlave) setAvailableAsSlave(addr string, port string) {
@@ -52,4 +54,8 @@ func (m *MasterSlave) isMaster() bool {
 
 func (m *MasterSlave) currentMaster() (string, string) {
 	return m.masterAddr, m.masterPort
+}
+
+func (m *MasterSlave) currentMasterAsURI() (string) {
+	return "http://"+m.masterAddr+":"+m.masterPort+"/"
 }

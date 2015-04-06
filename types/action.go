@@ -8,6 +8,7 @@ import (
 	"github.com/relops/cqlr"
 	"net/http"
 	"time"
+	"strings"
 )
 
 type Action struct {
@@ -94,11 +95,24 @@ func (a Action) DeleteTags() {
 	DeleteTagsForObject(a.UUID)
 }
 
-func (action *Action) Execute() bool {
+func (action *Action) Execute(task *Task) bool {
 	start := time.Now()
-	log.WithFields(log.Fields{"action": action.UUID, "URI": action.URI, "verb": action.Operation}).Info("Executing Action")
-	response, error := action.makeRequest()
-
+	// create temp vars for uri and payload.  we don't want to save the resolved versions back to the DB
+	uri := action.URI
+	payload := action.Payload
+	configMap := map[string]string{
+		"<<HORAE_API_URI>>": Configuration.MasterURI,
+		"<<HORAE_COMPLETION_URI>>": Configuration.MasterURI+"v1/task/"+task.UUID.String()+"/complete",
+		"<<HORAE_TASK_UUID>>": task.UUID.String(),
+		"<<HORAE_TASK_STATUS>>": task.Status,
+	}
+	for k, v := range configMap {
+		uri = strings.Replace(uri, k, v, -1)
+		payload = strings.Replace(payload, k, v, -1)
+	}
+	// log later so we have a resolved URI
+	log.WithFields(log.Fields{"action": action.UUID, "URI": uri, "verb": action.Operation}).Info("Executing Action")
+	response, error := action.makeRequest(uri, payload)
 	if error != nil {
 		action.Status = TaskFailed
 		action.Failure = error.Error()
@@ -118,24 +132,16 @@ func (action *Action) Execute() bool {
 	}
 }
 
-func (a Action) makeRequest() (resp *http.Response, err error) {
+func (a Action) makeRequest(uri string, payload string) (resp *http.Response, err error) {
 	switch {
 	case a.Operation == TaskGet:
-		return http.Get(a.URI)
-	case a.Operation == TaskPut:
-		request, err := http.NewRequest(TaskPut, a.URI, nil)
-		if err != nil {
-			return http.DefaultClient.Do(request)
-		} else {
-			// TODO - unable to undertake PUT. Needs fix
-			return resp, errors.New("Unable to create PUT")
-		}
+		return http.Get(uri)
 	case a.Operation == TaskPost:
-		return http.Post(a.URI, "application/json", bytes.NewBufferString(a.Payload))
+		return http.Post(uri, "application/json", bytes.NewBufferString(payload))
 	case a.Operation == TaskHead:
-		return http.Head(a.URI)
+		return http.Head(uri)
 	case a.Operation == TaskDelete:
-		request, err := http.NewRequest(TaskDelete, a.URI, nil)
+		request, err := http.NewRequest(TaskDelete, uri, nil)
 		if err != nil {
 			return http.DefaultClient.Do(request)
 		} else {

@@ -10,22 +10,17 @@ import (
 	"os"
 )
 
-var (
-	clusterName      string
-	cassandraAddress string
-	etcdAddress      string
-	staticPort       bool
-)
+var isRunning bool
 
 func StartServer() {
-	InitConfig()
-	log.WithFields(log.Fields{"cluster": clusterName}).Info("Starting horae server")
+	types.InitConfig()
+	log.WithFields(log.Fields{"cluster": types.Configuration.ClusterName}).Info("Starting horae server")
 
 	// Create core node type
-	node := types.Node{common.GenerateUUID(), clusterName, "", ""}
+	node := types.Node{UUID: common.GenerateUUID(), Cluster: types.Configuration.ClusterName}
 
-	eunomia.InitETCD(etcdAddress)
-	types.InitDAO(cassandraAddress, clusterName)
+	eunomia.InitETCD(types.Configuration.ETCDAddress)
+	types.InitDAO(types.Configuration.CassandraAddress, types.Configuration.ClusterName)
 
 	// Signal failure to core core
 	coreFailureCh := make(chan bool)
@@ -37,7 +32,7 @@ func StartServer() {
 	allToEunomiaCh := make(chan types.EunomiaRequest)
 
 	// Start etcd Manager
-	go eirene.StartEirene(node, staticPort, eireneToCore, coreFailureCh, allToEunomiaCh, eunomiaToEireneCh)
+	go eirene.StartEirene(node, types.Configuration.StaticPort, eireneToCore, coreFailureCh, allToEunomiaCh, eunomiaToEireneCh)
 
 	for {
 		select {
@@ -45,11 +40,17 @@ func StartServer() {
 			log.Print("Received error state. Shutting down")
 			os.Exit(1)
 		case node = <-eireneToCore:
-			log.WithFields(log.Fields{"UUID": node.UUID, "cluster": node.Cluster, "IP": node.Address, "port": node.Port}).Info("Node generated")
-			// Start API Server
-			go eunomia.StartEunomia(node, coreFailureCh, eunomiaToEireneCh, allToEunomiaCh)
-			// Start Queue Manager
-			go dike.StartDike(node, coreFailureCh, allToEunomiaCh)
+			if !isRunning {
+				log.WithFields(log.Fields{"UUID": node.UUID, "cluster": node.Cluster, "IP": node.Address, "port": node.Port}).Info("Node generated")
+				// Start API Server
+				go eunomia.StartEunomia(node, coreFailureCh, eunomiaToEireneCh, allToEunomiaCh)
+				// Start Queue Manager
+				go dike.StartDike(node, coreFailureCh, allToEunomiaCh)
+				isRunning = true
+			} else {
+				// received an updated Node object from eirene, store and update configuration
+				types.Configuration.MasterURI = node.MasterURI
+			}
 		}
 	}
 }

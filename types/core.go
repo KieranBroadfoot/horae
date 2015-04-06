@@ -9,10 +9,11 @@ var session *gocql.Session
 
 // type defines the core data set of the running node
 type Node struct {
-	UUID    gocql.UUID
-	Cluster string
-	Address string
-	Port    string
+	UUID      gocql.UUID
+	Cluster   string
+	Address   string
+	Port      string
+	MasterURI string
 }
 
 func InitDAO(cassandraAddress string, clusterName string) {
