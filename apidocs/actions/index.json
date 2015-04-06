@@ -8,6 +8,50 @@
     ],
     "apis": [
         {
+            "path": "/actions",
+            "description": "This endpoint will return actions known to Horae, either as an array or based on specific criteria (tag).",
+            "operations": [
+                {
+                    "httpMethod": "GET",
+                    "nickname": "actions",
+                    "type": "array",
+                    "items": {
+                        "$ref": "github.com.kieranbroadfoot.horae.types.Action"
+                    },
+                    "summary": "This endpoint will return actions known to Horae, either as an array or based on specific criteria (tag).",
+                    "parameters": [
+                        {
+                            "paramType": "query",
+                            "name": "tag",
+                            "description": "Tag against which you wish to limit actions returned",
+                            "dataType": "string",
+                            "type": "string",
+                            "format": "",
+                            "allowMultiple": false,
+                            "required": false,
+                            "minimum": 0,
+                            "maximum": 0
+                        }
+                    ],
+                    "responseMessages": [
+                        {
+                            "code": 200,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Action"
+                        },
+                        {
+                            "code": 400,
+                            "message": "",
+                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
+                        }
+                    ],
+                    "produces": [
+                        "application/json"
+                    ]
+                }
+            ]
+        },
+        {
             "path": "/action/{uuid}",
             "description": "The action endpoint will return a known Action with the appropriate UUID.  UUIDs are created by Horae during creation.",
             "operations": [
@@ -162,50 +206,6 @@
                             "code": 200,
                             "message": "",
                             "responseModel": "github.com.kieranbroadfoot.horae.types.Success"
-                        },
-                        {
-                            "code": 400,
-                            "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Error"
-                        }
-                    ],
-                    "produces": [
-                        "application/json"
-                    ]
-                }
-            ]
-        },
-        {
-            "path": "/actions",
-            "description": "This endpoint will return actions known to Horae, either as an array or based on specific criteria (tag).",
-            "operations": [
-                {
-                    "httpMethod": "GET",
-                    "nickname": "actions",
-                    "type": "array",
-                    "items": {
-                        "$ref": "github.com.kieranbroadfoot.horae.types.Action"
-                    },
-                    "summary": "This endpoint will return actions known to Horae, either as an array or based on specific criteria (tag).",
-                    "parameters": [
-                        {
-                            "paramType": "query",
-                            "name": "tag",
-                            "description": "Tag against which you wish to limit actions returned",
-                            "dataType": "string",
-                            "type": "string",
-                            "format": "",
-                            "allowMultiple": false,
-                            "required": false,
-                            "minimum": 0,
-                            "maximum": 0
-                        }
-                    ],
-                    "responseMessages": [
-                        {
-                            "code": 200,
-                            "message": "",
-                            "responseModel": "github.com.kieranbroadfoot.horae.types.Action"
                         },
                         {
                             "code": 400,

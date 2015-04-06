@@ -7,12 +7,12 @@
             "description": "Actions"
         },
         {
-            "path": "/queues",
-            "description": "Queues"
-        },
-        {
             "path": "/tasks",
             "description": "Tasks"
+        },
+        {
+            "path": "/queues",
+            "description": "Queues"
         }
     ],
     "info": {

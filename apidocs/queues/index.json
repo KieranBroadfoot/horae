@@ -271,8 +271,8 @@
                     "format": ""
                 },
                 "backpressureDefinition": {
-                    "type": "string",
-                    "description": "For synchronous queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called.",
+                    "type": "uint64",
+                    "description": "For queues the backpressure definition defines the number of waiting task slots before the backpressure API endpoint is called.",
                     "items": {},
                     "format": ""
                 },
