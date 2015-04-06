@@ -2,7 +2,7 @@ package core
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/kieranbroadfoot/horae/common"
+	"github.com/gocql/gocql"
 	"github.com/kieranbroadfoot/horae/dike"
 	"github.com/kieranbroadfoot/horae/eirene"
 	"github.com/kieranbroadfoot/horae/eunomia"
@@ -17,7 +17,7 @@ func StartServer() {
 	log.WithFields(log.Fields{"cluster": types.Configuration.ClusterName}).Info("Starting horae server")
 
 	// Create core node type
-	node := types.Node{UUID: common.GenerateUUID(), Cluster: types.Configuration.ClusterName}
+	node := types.Node{UUID: GenerateUUID(), Cluster: types.Configuration.ClusterName}
 
 	eunomia.InitETCD(types.Configuration.ETCDAddress)
 	types.InitDAO(types.Configuration.CassandraAddress, types.Configuration.ClusterName)
@@ -53,4 +53,8 @@ func StartServer() {
 			}
 		}
 	}
+}
+
+func GenerateUUID() gocql.UUID {
+	return gocql.TimeUUID()
 }

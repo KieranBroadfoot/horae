@@ -17,10 +17,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
-	"github.com/kieranbroadfoot/horae/common"
 	"github.com/kieranbroadfoot/horae/types"
 	"net"
 	"net/http"
+	"errors"
 )
 
 func startAPIInterface(toCore chan bool, toEunomia chan types.EunomiaRequest, listener net.Listener, mw *MasterSlave) {
@@ -58,7 +58,7 @@ func StartEirene(node types.Node, staticPort bool, signalToCore chan types.Node,
 	log.Print("Starting Eirene")
 
 	// initialise a listener with a random port
-	ipaddr, _ := common.FindExternalInterface()
+	ipaddr, _ := findExternalInterface()
 	port := ":0"
 	if staticPort {
 		port = ":8015"
@@ -124,4 +124,42 @@ func returnError(w http.ResponseWriter, code uint32, message string) {
 	if err := json.NewEncoder(w).Encode(types.Error{Code: code, Message: message}); err != nil {
 		panic(err)
 	}
+}
+
+// TODO - presumes IPV4, needs support for IPV6?
+func findExternalInterface() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue // interface down
+		}
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue // loopback interface
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return "", err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+				case *net.IPNet:
+				ip = v.IP
+				case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue // not an ipv4 address
+			}
+			return ip.String(), nil
+		}
+	}
+	return "", errors.New("No valid network connection")
 }
